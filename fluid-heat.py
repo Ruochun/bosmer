@@ -1,4 +1,3 @@
-# Begin demo
 from dolfin import *
 #from matplotlib import pyplot
 import numpy as np
@@ -9,6 +8,7 @@ from fenapack import PCDNewtonSolver, PCDNonlinearProblem
 from fenapack import StabilizationParameterSD
 
 import meshUtilities as mU
+import generalUtilities as gU
 import subSystems as sS
 
 from mpi4py import MPI as pmp
@@ -72,19 +72,20 @@ parameters["std_out_all_processes"] = False
 rank = commmpi.Get_rank()
 root = 0
 # Load mesh from file and refine uniformly
-meshInfo = {}
+meshData = {}
+BCs = {}
 if mesh_file == "__SAMPLE":
-    meshInfo['fluid_mesh'] = mU.sampleMesh(100)
-    mesh = meshInfo['fluid_mesh']
+    meshData['fluid']['mesh'] = mU.sampleMesh(100)
+    mesh = meshData['fluid']['mesh']
     boundary_points = [1.5, .5]
 else:
     try:
-        meshInfo['fluid_mesh'] = Mesh(args.mesh_file)
-        mesh = meshInfo['fluid_mesh']
+        meshData['fluid']['mesh'] = Mesh(args.mesh_file)
+        mesh = meshData['fluid']['mesh']
     except:
         try:
-            meshInfo['fluid_mesh'] = Mesh()
-            mesh = meshInfo['fluid_mesh']
+            meshData['fluid']['mesh'] = Mesh()
+            mesh = meshData['fluid']['mesh']
             fid = HDF5File(commmpi, args.mesh_file, 'r')
             fid.read(mesh, 'mesh', False)
             fid.close()
@@ -95,84 +96,47 @@ else:
     for i in range(args.level):
         mesh = refine(mesh)
 
-
+flow_direction = Constant((1.0,0.0))
 ##################################
 #### Boundary & design domain ####
 ##################################
-eps = 1e-7
-# bump example BCs
-class Gamma0(SubDomain):  #no-slip
-    def inside(self, x, on_boundary):
-        return on_boundary 
+meshData['fluid']['subdomain'] = mU.markSubDomains(mesh)
+subDomain_markers = meshData['fluid']['subdomain']
+meshData['fluid']['boundary'] = mU.markBoundaries(mesh)
+boundary_markers = meshData['fluid']['boundary']
+meshData['fluid']['n'] = FacetNormal(mesh)
+meshData['fluid']['h'] = CellDiameter(mesh)
+meshData['fluid']['dx'] = Measure("dx", domain=mesh, subdomain_id="everywhere")
+meshData['fluid']['dX'] = Measure("dx", domain=mesh, subdomain_data=subDomain_markers)
+meshData['fluid']['ds'] = Measure("ds", domain=mesh, subdomain_data=boundary_markers)
 
-class Gamma1(SubDomain):  #bump
-    def inside(self, x, on_boundary):
-        return on_boundary and (x[2]>=eps) and (x[2]<=0.1+eps) and (x[1]>0.3-eps) and (x[1]<0.4+eps) and (x[0]>0.35-eps) and (x[0]<0.45+eps) 
+# Build function spaces
+pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.0)
+Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+W_NS = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+W_thermal = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
 
-class Gamma2(SubDomain): #slip
-    def inside(self, x, on_boundary):
-        return on_boundary and ((x[1]<eps)or(x[1]>0.7-eps))
+BCs['fluid']['NS'] = mU.applyNSBCs(W_NS, boundary_markers)
+BCs['fluid']['adjNS'] = mU.applyAdjNSBCs(W_NS, boundary_markers)
+BCs['fluid']['thermal'] = mU.applyThermalBCs(W_thermal, boundary_markers)
+BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(W_thermal, boundary_markers) 
 
-# Inlet bc
-class Gamma3(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and x[0]<eps #and x[1]>=eps and (x[1]<=0.7-eps)
+#(u, p) = TrialFunctions(W_NS)
+#(v, q) = TestFunctions(W_NS)
+w_ = Function(W_NS)
+#(u_, p_) = split(w_)
+w_prime = Function(W_NS)
+#(u_prime, p_prime) = split(w_prime) # _prime marks adjoint variables
+#T = TrialFunctions(W_thermal)
+#S = TestFunctions(W_thermal)
+T_ = Function(W_thermal)
+T_prime = Function(W_thermal)
 
-# Oultet bc
-class Gamma4(SubDomain):
-    def inside(self, x, on_boundary):
-        return on_boundary and (x[0]>1.5-eps)
-
-boundary_markers = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
-boundary_markers.set_all(5)        # interior facets
-Gamma0().mark(boundary_markers, 0) # side no-slip facets
-Gamma1().mark(boundary_markers, 1) # bump facets
-Gamma2().mark(boundary_markers, 2) # slip facet
-Gamma3().mark(boundary_markers, 3) # inlet facet
-Gamma4().mark(boundary_markers, 4) # outlet facet
-ds = Measure("ds", domain=mesh, subdomain_data=boundary_markers)
-
-
-# Build Taylor-Hood function space
-P2 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
-P1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-#W = FunctionSpace(mesh, ((P2*P1)*P3)*P4)
-W = FunctionSpace(mesh, MixedElement([P2, P1]))
-#vel_space = FunctionSpace(mesh, P2)
-
-n = FacetNormal(mesh)
-flow_direction = Constant((1.0,0.0,0.0))
-u0 = 1.0
-if ramp_token == 2:
-    #ramp_time = 10.0
-    ramp_time = args.dt*args.ramp_ts
-    #u_in = Expression(("u0*(x[1])*(1.0-x[1])*(x[2])*(1.0-x[2])*16.0*(1.0 - exp(-0.1*t))","0.0","0.0"),u0=u0,t=0.0,degree=2)
-    u_in = Expression(("u0*(t/ramp_time)","0.0","0.0"),u0=u0,t=0.0,ramp_time=ramp_time,degree=2)
-    nu = Expression("nu",nu=args.viscosity,degree=1,domain=mesh)
-elif ramp_token == 1:
-    if args.viscosity > 1.0:
-        info("Warning: the viscosity is larger than 1, the solver will ramp up the viscosity, instead of ramp down.")
-    ramp_time = args.dt*args.ramp_ts
-    u_in = Expression(("u0","0.0","0.0"),u0=u0,degree=1)
-    nu = Expression("(nu-start_nu)/ramp_time*t+start_nu",start_nu=0.02,nu=args.viscosity,t=0.0,ramp_time=ramp_time,degree=2,domain=mesh)
-else:
-    u_in = Expression(("u0","0.0","0.0"),u0=u0,degree=1)
-    nu = Expression("nu",nu=args.viscosity,degree=1,domain=mesh)
-
-# Provide some info about the current problem
-info("Reynolds number: Re = %g" % (0.1*u0/args.viscosity))
-info("Dimension of the function space: %g" % W.dim())
-# Arguments and coefficients of the form
-(u, p) = TrialFunctions(W)
-(v, q) = TestFunctions(W)
-w = Function(W)
-w = interpolate(Expression(("eps","eps","eps","0.0"),eps=init_ufield,degree=1),W)
-w0 = Function(W)
-w0 = interpolate(Expression(("eps","eps","eps","0.0"),eps=init_ufield,degree=1),W)
-(u_, p_) = split(w)
-(u0_, p0_) = split(w0)
-
-h = CellDiameter(mesh)
+problemNS = sS.formProblemNS(meshData, W_NS, BCs, physicalPara)
+problemAdjNS = sS.formProblemAdjNS(W_NS, BCs, physicalPara)
+problemThermal = sS.formProblemThermal(W_thermal, BCs, physicalPara) 
+problemAdjThermal = sS.formProblemAdjThermal(W_thermal, BCs, physicalPara)
 
 info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
 
