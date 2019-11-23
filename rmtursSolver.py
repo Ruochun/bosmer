@@ -45,5 +45,16 @@ class rmtursNewtonSolver(NewtonSolver):
         r = super(rmtursNewtonSolver, self).solve(problem, x)
         del self._problem
         return r
+    def linear_solver(self):
+        return self._solver
+    def solver_setup(self, A, P, nonlinear_problem, iteration):
+        if iteration>0 or getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+        linear_solver = self._solver
+        nonlinear_problem = self._problem
+        P = A if P.empty() else P
+        linear_solver.set_operators(A, P)
+
 
 

@@ -17,19 +17,19 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=
                                  argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
-parser.add_argument("--nu", type=float, dest="viscosity", default=0.02,
+parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
                     help="kinematic viscosity")
 parser.add_argument("--Pe", type=float, dest="Pe", default=10.,
                     help="Peclet number for thermal system")
 parser.add_argument("--ls", type=str, dest="ls", default="iterative",
-                    choices=["direct", "iterative"], help="linear solvers")
+                    choices=["direct", "iterative"], help="linear solver, choose from direct or iterative")
 parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
                     help="number of ts per output file")
 parser.add_argument("--mesh_file", type=str, dest="mesh_file", default="__SAMPLE",
                     help="path and file name of the mesh, or do not specify to use the defualt sample mesh")
 parser.add_argument("--out_folder", type=str, dest="out_folder", default="./result",
                     help="output folder name")
-parser.add_argument("--maxIter", type=int, dest="maxIter", default=10,
+parser.add_argument("--max_iter", type=int, dest="max_iter", default=10,
                     help="total number of iteration steps")
 args = parser.parse_args(sys.argv[1:])
 
@@ -37,20 +37,28 @@ parameters["form_compiler"]["quadrature_degree"] = 3
 parameters["std_out_all_processes"] = False
 rank = commmpi.Get_rank()
 root = 0
-# Load mesh from file and refine uniformly
+# prepare data dictionaries
 meshData = {} # mesh and related info
 BCs = {} # BC sets
 funcVar = {} # state and adjoint variables
 physicalPara = {} # physical parameters of this problem
 
-maxIter = args.maxIter
+# we have a fluid system
+meshData['fluid'] = {}
+BCs['fluid'] = {}
+funcVar['fluid'] = {}
+physicalPara['fluid'] = {}
+# we don't currently have a solid system
+
+
+maxIter = args.max_iter
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
 
-if mesh_file == "__SAMPLE":
-    meshData['fluid']['mesh'] = mU.sampleMesh(100)
+if args.mesh_file == "__SAMPLE":
+    meshData['fluid']['mesh'] = mU.sampleMesh(20)
     mesh = meshData['fluid']['mesh']
-    boundary_points = [1.5, .5]
+    boundary_points = [1., .5]
 else:
     try:
         meshData['fluid']['mesh'] = Mesh(args.mesh_file)
@@ -78,7 +86,7 @@ justRemeshed = False
 for iterNo in range(maxIter):
 
     info('*****************************')
-    info('* Beginning a new iteration *')
+    info('* Begining a new iteration *')
     info('*****************************')
 
     if (iterNo==0) or (justRemeshed):
@@ -111,23 +119,25 @@ for iterNo in range(maxIter):
         BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(W_thermal, boundary_markers) 
 
         funcVar['fluid']['up'] = Function(W_NS)
+        #funcVar['fluid']['up'] = interpolate(Expression(('10.0','1.0','1.0'),degree=1), W_NS)
+        funcVar['fluid']['up(test)'] = TestFunction(W_NS)
         funcVar['fluid']['up_prime'] = Function(W_NS) # _prime marks adjoint variables
         funcVar['fluid']['T'] = Function(W_thermal)
         funcVar['fluid']['T_prime'] = Function(W_thermal)
 
         problemNS = sS.formProblemNS(meshData, W_NS, BCs, physicalPara, funcVar)
         problemAdjNS = sS.formProblemAdjNS(meshData, W_NS, BCs, physicalPara, funcVar)
-        problemThermal = sS.formProblemThermal(W_thermal, BCs, physicalPara, funcVar) 
-        problemAdjThermal = sS.formProblemAdjThermal(W_thermal, BCs, physicalPara, funcVar)
+        problemThermal = sS.formProblemThermal(meshData, W_thermal, BCs, physicalPara, funcVar) 
+        problemAdjThermal = sS.formProblemAdjThermal(meshData, W_thermal, BCs, physicalPara, funcVar)
 
-        info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
+        #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
 
-        # Set up linear solver (GMRES with right preconditioning using Schur fact)
+        # Set up linear solver
         PETScOptions.clear()
         linear_solver = PETScKrylovSolver()
         linear_solver.parameters["relative_tolerance"] = 1e-5
         linear_solver.parameters["absolute_tolerance"] = 1e-12
-        linear_solver.parameters['error_on_nonconvergence'] = False
+        linear_solver.parameters['error_on_nonconvergence'] = True
         PETScOptions.set("ksp_monitor")
 
         # Set up subsolvers
@@ -143,32 +153,35 @@ for iterNo in range(maxIter):
 
         # Set up nonlinear solver
         solver = rmtursNewtonSolver(linear_solver)
-        solver.parameters["relative_tolerance"] = 1e-3
-        solver.parameters["error_on_nonconvergence"] = False
+        solver.parameters["relative_tolerance"] = 1e-4
+        solver.parameters["error_on_nonconvergence"] = True
         solver.parameters["maximum_iterations"] = 7
         if rank == 0:
             set_log_level(20) #INFO level, no warnings
         else:
             set_log_level(50)
-    # files
-    #if rank == 0:
-    ufile = File(args.out_folder+"/velocity.pvd")
-    pfile = File(args.out_folder+"/pressure.pvd")
+        
+    ########### End of mesh setup and problem definition ###############
+   
+    meshFile = File(args.out_folder+"/mesh.pvd") 
+    uFile = File(args.out_folder+"/velocity.pvd")
+    pFile = File(args.out_folder+"/pressure.pvd")
     # Solve problem
-    t = 0.0
-    time_iters = 0
     krylov_iters = 0
     solution_time = 0.0
 
-    info("t = {:g}, step = {:g}, dt = {:g}".format(t, time_iters, args.dt))
+    """
+    info("step = {:g}".format(iterNo+1))
     with Timer("Solve") as t_solve:
-        newton_iters, converged = solver.solve(problem, w.vector())
+        newton_iters, converged = solver.solve(problemNS, funcVar['fluid']['up'].vector())
     krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
-
-    if (iterNo % args.ts_per_out==0)or(iterNo == 0):
-        ufile << u_out
-        pfile << p_out
+    """
+    if (iterNo % args.ts_per_out==0):
+        u_out, p_out = funcVar['fluid']['up'].split()
+        uFile << u_out
+        pFile << p_out
+        meshFile << mesh
 
 
 # Report timings
@@ -176,8 +189,8 @@ list_timings(TimingClear.clear, [TimingType.wall, TimingType.user])
 
 # Get iteration counts
 result = {
-    "ndof": W.dim(), "time": solution_time, "steps": time_iters,
-    "lin_its": krylov_iters, "lin_its_avg": float(krylov_iters)/time_iters}
+    "ndof": W_NS.dim(), "time": solution_time, "steps": iterNo+1,
+    "lin_its": krylov_iters, "lin_its_avg": float(krylov_iters)/(iterNo+1)}
 tab = "{:^15} | {:^15} | {:^15} | {:^19} | {:^15}\n".format(
     "No. of DOF", "Steps", "Krylov its", "Krylov its (p.t.s.)", "Time (s)")
 tab += "{ndof:>9}       | {steps:^15} | {lin_its:^15} | " \

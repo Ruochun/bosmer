@@ -5,20 +5,36 @@ def epsilon(u):
     return 0.5*(grad(u) + grad(u).T)
 
 def formProblemNS(meshData, W, BCs, para, Var):
-    (v, q) = TestFunctions(W)
-    w = Function(W)
+    #(v, q) = TestFunctions(W)
+    (v, q) = split(Var['fluid']['up(test)'])
+    w = Var['fluid']['up']#Function(W)
     (u, p) = split(w)
     dw = TrialFunction(W)
     dx = meshData['fluid']['dx']
     nu = para['fluid']['nu']
-    
+
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
-    J = derivative(F, w, dw)
+    J = derivative(F, w)
     assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
     problem = rmtursNonlinearProblem(assem)
+    #problem = NonlinearVariationalProblem (F, w, bcs , J)
+    #solver = NonlinearVariationalSolver(problem)
+    #solver.solve()
+    linear_solver = PETScKrylovSolver()
+    PETScOptions.clear()
+    PETScOptions.set("preconditioner", "none")
+    PETScOptions.set("ksp_type", "fgmres")
+    PETScOptions.set("ksp_monitor")
+    linear_solver.set_from_options()
+
+    solver = rmtursNewtonSolver(linear_solver)
+    #solver.parameters["nonlinear_solver"] = "snes"
+    #solver.parameters["linear_solver"] = "lu"
+    solver.solve(problem, w.vector())
+
     return problem
 
 def formProblemAdjNS(meshData, W, BCs, para, Var):
@@ -54,7 +70,7 @@ def formProblemThermal(meshData, Q, BCs, para, Var):
     F = (
             (1./Pe)*dot(grad(T), grad(S))
             + dot(grad(T), u_)*S
-        )*dx + (
+        )*dx + (0.
             
         )*ds(0)
     
@@ -76,7 +92,7 @@ def formProblemAdjThermal(meshData, Q, BCs, para, Var):
     F = (
             (1./Pe)*dot(grad(S), grad(T))
             + dot(grad(S), u_)*T
-        )*dx + (
+        )*dx + (0.
             
         )*ds(0)
 

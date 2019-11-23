@@ -1,4 +1,4 @@
-from fenics import *
+from dolfin import *
 
 class yPeriodic(SubDomain):
 	def __init__(self, tolerance=DOLFIN_EPS, mapFrom=0.0, mapTo=1.0):
