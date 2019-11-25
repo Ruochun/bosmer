@@ -40,14 +40,14 @@ def markBoundaries(mesh):
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0]>3.-DOLFIN_EPS
-    class periodicWall(SubDomain):
+    class slipWall(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and (x[1]<DOLFIN_EPS or x[1]>1.-DOLFIN_EPS)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)
     outflow().mark(boundary, 2)
-    periodicWall().mark(boundary, 90)
+    slipWall().mark(boundary, 90)
     return boundary    
 
 def applyNSBCs(W, markers):
@@ -60,6 +60,7 @@ def applyNSBCs(W, markers):
         inflow = Expression(('u_in', '0.0', '0.0'), u_in=u0, degree=2)
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
+    bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     return [bc0, bc1]
 
 def applyAdjNSBCs(W, markers):
@@ -69,7 +70,8 @@ def applyAdjNSBCs(W, markers):
         noslip = Constant((0., 0., 0.))
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
-    return [bc0, bc1]
+    bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
+    return [bc0, bc1, bc90]
 
 def applyThermalBCs(W, markers):
     bc1 = DirichletBC(W, 0.0, markers, 1)

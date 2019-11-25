@@ -4,12 +4,11 @@ from rmtursSolver import *
 def epsilon(u):
     return 0.5*(grad(u) + grad(u).T)
 
-def formProblemNS(meshData, W, BCs, para, Var):
-    #(v, q) = TestFunctions(W)
-    (v, q) = split(Var['fluid']['up(test)'])
+def formProblemNS(meshData, W, BCs, para, Var, system):
+    (v, q) = TestFunctions(W)
     w = Var['fluid']['up']#Function(W)
     (u, p) = split(w)
-    dw = TrialFunction(W)
+    #dw = TrialFunction(W)
     dx = meshData['fluid']['dx']
     nu = para['fluid']['nu']
 
@@ -18,26 +17,14 @@ def formProblemNS(meshData, W, BCs, para, Var):
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
     J = derivative(F, w)
-    assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
-    problem = rmtursNonlinearProblem(assem)
-    #problem = NonlinearVariationalProblem (F, w, bcs , J)
-    #solver = NonlinearVariationalSolver(problem)
-    #solver.solve()
-    linear_solver = PETScKrylovSolver()
-    PETScOptions.clear()
-    PETScOptions.set("preconditioner", "none")
-    PETScOptions.set("ksp_type", "fgmres")
-    PETScOptions.set("ksp_monitor")
-    linear_solver.set_from_options()
-
-    solver = rmtursNewtonSolver(linear_solver)
-    #solver.parameters["nonlinear_solver"] = "snes"
-    #solver.parameters["linear_solver"] = "lu"
-    solver.solve(problem, w.vector())
-
+    if system['ns'] == "rmturs":
+        assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
+        problem = rmtursNonlinearProblem(assem)
+    elif system['ns'] == "variational":
+        problem = NonlinearVariationalProblem (F, w, BCs['fluid']['NS'], J)
     return problem
 
-def formProblemAdjNS(meshData, W, BCs, para, Var):
+def formProblemAdjNS(meshData, W, BCs, para, Var, system):
     (v, q) = TestFunctions(W)
     w = Function(W)
     (u, p) = split(w)
@@ -59,7 +46,7 @@ def formProblemAdjNS(meshData, W, BCs, para, Var):
     problem = rmtursNonlinearProblem(assem)
     return problem
 
-def formProblemThermal(meshData, Q, BCs, para, Var):
+def formProblemThermal(meshData, Q, BCs, para, Var, system):
     S = TestFunction(Q)
     T = Function(Q)
     dT = TrialFunction(Q)
@@ -79,7 +66,7 @@ def formProblemThermal(meshData, Q, BCs, para, Var):
     problem = rmtursNonlinearProblem(assem)
     return problem
 
-def formProblemAdjThermal(meshData, Q, BCs, para, Var):
+def formProblemAdjThermal(meshData, Q, BCs, para, Var, system):
     S = TestFunction(Q)
     T = Function(Q)
     dT = TrialFunction(Q)
@@ -100,5 +87,36 @@ def formProblemAdjThermal(meshData, Q, BCs, para, Var):
     assem = rmtursAssembler(J, F, BCs['fluid']['adjThermal'])
     problem = rmtursNonlinearProblem(assem)
     return problem
+
+def formSolverNS(problem, system):
+    if system['ns'] == "rmturs":
+        linear_solver = formLinearSolver('generic', system)
+        solver = rmtursNewtonSolver(linear_solver)
+        solver.parameters["relative_tolerance"] = 1e-4
+        solver.parameters["error_on_nonconvergence"] = False
+        solver.parameters["maximum_iterations"] = 5
+    elif system['ns'] == "variational":
+        solver = NonlinearVariationalSolver(problem)
+        solver.parameters['newton_solver']['relative_tolerance'] = 1E-4
+        solver.parameters['newton_solver']['maximum_iterations'] = 5
+
+    return solver
+
+def formLinearSolver(instr, system):
+    if instr == "generic":
+        linear_solver = PETScKrylovSolver() 
+        PETScOptions.clear()
+        linear_solver.parameters["relative_tolerance"] = 1e-5
+        linear_solver.parameters['error_on_nonconvergence'] = False
+        PETScOptions.set("ksp_monitor")
+        if system['ls'] == "iterative":
+            PETScOptions.set("ksp_type", "fgmres")
+            PETScOptions.set("ksp_gmres_restart", 10)
+            PETScOptions.set("ksp_max_it", 100)
+            PETScOptions.set("pc_type", "hypre")
+            #PETScOptions.set("preconditioner", "default")
+            #PETScOptions.set("nonzero_initial_guess", True)
+        linear_solver.set_from_options()
+    return linear_solver
 
 

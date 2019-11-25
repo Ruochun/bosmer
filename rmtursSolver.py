@@ -13,8 +13,12 @@ PYBIND11_MODULE(SIGNATURE, m)
 NewtonSolver.krylov_iterations = compile_cpp_code(_cpp).NewtonSolverExt.krylov_iterations
 
 class rmtursAssembler(object):
-    def __init__(self, a, L, bcs):
+    def __init__(self, a, L, bcs, a_pc=None):
         self.assembler = SystemAssembler(a, L, bcs)
+        if a_pc is not None:
+            self.assembler_pc = SystemAssembler(a_pc, L, bcs)
+        else:
+            self.assembler_pc = None
         self._bcs = bcs
     def rhs_vector(self, b, x=None):
         if x is not None:
@@ -23,7 +27,10 @@ class rmtursAssembler(object):
             self.assembler.assemble(b)
     def system_matrix(self, A):
         self.assembler.assemble(A)
-
+    def pc_matrix(self, P):
+        if self.assembler_pc is not None:
+            self.assembler_pc.assemble(P)
+    
 class rmtursNonlinearProblem(NonlinearProblem):
     def __init__(self, rmturs_assembler):
         #assert isinstance(rmturs_assembler, rmtursAssembler)
@@ -33,6 +40,8 @@ class rmtursNonlinearProblem(NonlinearProblem):
         self.rmturs_assembler.rhs_vector(b, x)
     def J(self, A, x):
         self.rmturs_assembler.system_matrix(A)
+    def J_pc(self, P, x):
+        self.rmturs_assembler.pc_matrix(P)
 
 class rmtursNewtonSolver(NewtonSolver):
     def __init__(self, solver):

@@ -15,6 +15,8 @@ commmpi = pmp.COMM_WORLD
 # Parse input arguments
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=
                                  argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--ns", type=str, dest="ns", default="variational",
+                    choices=["variational", "rmturs"],help="non-linear solver, rmturs or FEniCS variational solver")
 parser.add_argument("-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
 parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
@@ -37,11 +39,17 @@ parameters["form_compiler"]["quadrature_degree"] = 3
 parameters["std_out_all_processes"] = False
 rank = commmpi.Get_rank()
 root = 0
+if rank == 0:
+    set_log_level(20)
+else:
+    set_log_level(50)
+
 # prepare data dictionaries
 meshData = {} # mesh and related info
 BCs = {} # BC sets
 funcVar = {} # state and adjoint variables
 physicalPara = {} # physical parameters of this problem
+systemPara = {} # system parameters
 
 # we have a fluid system
 meshData['fluid'] = {}
@@ -51,12 +59,15 @@ physicalPara['fluid'] = {}
 # we don't currently have a solid system
 
 
+# load in system settings
 maxIter = args.max_iter
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
+systemPara['ns'] = args.ns
+systemPara['ls'] = args.ls
 
 if args.mesh_file == "__SAMPLE":
-    meshData['fluid']['mesh'] = mU.sampleMesh(20)
+    meshData['fluid']['mesh'] = mU.sampleMesh()
     mesh = meshData['fluid']['mesh']
     boundary_points = [1., .5]
 else:
@@ -119,50 +130,20 @@ for iterNo in range(maxIter):
         BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(W_thermal, boundary_markers) 
 
         funcVar['fluid']['up'] = Function(W_NS)
-        #funcVar['fluid']['up'] = interpolate(Expression(('10.0','1.0','1.0'),degree=1), W_NS)
-        funcVar['fluid']['up(test)'] = TestFunction(W_NS)
         funcVar['fluid']['up_prime'] = Function(W_NS) # _prime marks adjoint variables
         funcVar['fluid']['T'] = Function(W_thermal)
         funcVar['fluid']['T_prime'] = Function(W_thermal)
 
-        problemNS = sS.formProblemNS(meshData, W_NS, BCs, physicalPara, funcVar)
-        problemAdjNS = sS.formProblemAdjNS(meshData, W_NS, BCs, physicalPara, funcVar)
-        problemThermal = sS.formProblemThermal(meshData, W_thermal, BCs, physicalPara, funcVar) 
-        problemAdjThermal = sS.formProblemAdjThermal(meshData, W_thermal, BCs, physicalPara, funcVar)
+        problemNS = sS.formProblemNS(meshData, W_NS, BCs, physicalPara, funcVar, systemPara)
+        problemAdjNS = sS.formProblemAdjNS(meshData, W_NS, BCs, physicalPara, funcVar, systemPara)
+        problemThermal = sS.formProblemThermal(meshData, W_thermal, BCs, physicalPara, funcVar, systemPara) 
+        problemAdjThermal = sS.formProblemAdjThermal(meshData, W_thermal, BCs, physicalPara, funcVar, systemPara)
 
+        solverNS = sS.formSolverNS(problemNS, systemPara)
         #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
-
-        # Set up linear solver
-        PETScOptions.clear()
-        linear_solver = PETScKrylovSolver()
-        linear_solver.parameters["relative_tolerance"] = 1e-5
-        linear_solver.parameters["absolute_tolerance"] = 1e-12
-        linear_solver.parameters['error_on_nonconvergence'] = True
-        PETScOptions.set("ksp_monitor")
-
-        # Set up subsolvers
-        if args.ls == "iterative":
-            PETScOptions.set("ksp_type", "fgmres")
-            PETScOptions.set("ksp_gmres_restart", 10)
-            PETScOptions.set("ksp_max_it", 100)
-            PETScOptions.set("preconditioner", "default")
-            #PETScOptions.set("nonzero_initial_guess", True)
-
-        # Apply options
-        linear_solver.set_from_options()
-
-        # Set up nonlinear solver
-        solver = rmtursNewtonSolver(linear_solver)
-        solver.parameters["relative_tolerance"] = 1e-4
-        solver.parameters["error_on_nonconvergence"] = True
-        solver.parameters["maximum_iterations"] = 7
-        if rank == 0:
-            set_log_level(20) #INFO level, no warnings
-        else:
-            set_log_level(50)
-        
+    
     ########### End of mesh setup and problem definition ###############
-   
+    ########### Begining solving systems ###############################
     meshFile = File(args.out_folder+"/mesh.pvd") 
     uFile = File(args.out_folder+"/velocity.pvd")
     pFile = File(args.out_folder+"/pressure.pvd")
@@ -170,13 +151,16 @@ for iterNo in range(maxIter):
     krylov_iters = 0
     solution_time = 0.0
 
-    """
     info("step = {:g}".format(iterNo+1))
-    with Timer("Solve") as t_solve:
-        newton_iters, converged = solver.solve(problemNS, funcVar['fluid']['up'].vector())
-    krylov_iters += solver.krylov_iterations()
+    if systemPara['ns'] == "rmturs":
+        with Timer("SolveNS") as t_solve:
+            newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
+    else:
+        with Timer("SolveNS") as t_solve:
+            solverNS.solve()
+    #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
-    """
+    
     if (iterNo % args.ts_per_out==0):
         u_out, p_out = funcVar['fluid']['up'].split()
         uFile << u_out
