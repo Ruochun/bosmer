@@ -4,6 +4,15 @@ from rmtursSolver import *
 def epsilon(u):
     return 0.5*(grad(u) + grad(u).T)
 
+def sigma(u):
+    E = 1.
+    nu = .3
+    mu = E/(2.*(1.+nu))
+    lam = E*nu/((1.+nu)*(1.-2.*nu))
+    return 2.*mu*epsilon(u) + lam*tr(epsilon(u))*Identity(len(u))
+
+###### now begining form problems ########
+
 def formProblemNS(meshData, BCs, para, Var, system):
     W = meshData['fluid']['spaceNS']
     (v, q) = TestFunctions(W)
@@ -112,13 +121,42 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         problem = LinearVariationalProblem(a, L, Var['fluid']['T_prime'], BCs['fluid']['adjThermal'])
     return problem
 
-def formShapeGradient(meshData):
+def formProblemShapeGradient(meshData, BCs, para, Var, system):
     n = meshData['fluid']['n']
     ds = meshData['fluid']['ds']
+    dx = meshData['fluid']['dx']
+    (u, _) = split(Var['fluid']['up'])
+    (u_prime, _) = split(Var['fluid']['up_prime'])
+    nu = para['fluid']['nu']
+    (w, p) = TrialFunctions(meshData['fluid']['spaceSG'])
+    (v, q) = TestFunctions(meshData['fluid']['spaceSG'])
+    g = assemble(Constant(1.0)*dx) - meshData['fluid']['initVol']
+    
+    a = (inner(grad(w) , grad(v))+inner(w,v))*dx+p*inner(v,n)*ds(0)+q*inner(w,n)* ds(0)
+    L = (2.*nu*inner(epsilon(u), epsilon(u_prime)))*inner(n, v)*ds(0) - g*q*ds(0)
+    problem = LinearVariationalProblem(a, L, Var['fluid']['v'], BCs['fluid']['SG'])
 
-#def searchDirection(meshData, Var):
-    
-    
+    return problem
+
+def formProblemLinearElasticity(meshData, BCs, para, Var, system):
+    dx = meshData['fluid']['dx']
+    V = meshData['fluid']['spaceLE']
+    if V.mesh().topology().dim() == 2:
+        zeros = Constant((0., 0.))
+    elif V.mesh().topology().dim() == 3:
+        zeros = Constant((0., 0., 0.))
+    u = TrialFunction(V)
+    v = TestFunction(V)
+    a = inner(sigma(u), grad(v))*dx
+    L = inner(zeros, v)*dx
+    problem = LinearVariationalProblem(a, L, Var['fluid']['w'], BCs['fluid']['LE'])
+    return problem
+
+##### now begin forming solvers ########
+
+def formSolverShapeGradient(problem, system):
+    solver = LinearVariationalSolver(problem)
+    return solver
 
 def formSolverNS(problem, system):
     if system['ns'] == "rmturs":

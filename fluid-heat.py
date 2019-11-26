@@ -65,6 +65,7 @@ physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
 systemPara['ns'] = args.ns
 systemPara['ls'] = args.ls
+physicalPara['stepLen'] = .05
 
 if args.mesh_file == "__SAMPLE":
     meshData['fluid']['mesh'] = mU.sampleMesh()
@@ -88,6 +89,7 @@ else:
     for i in range(args.level):
         mesh = refine(mesh)
 
+meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
 ##################################
@@ -126,19 +128,23 @@ for iterNo in range(maxIter):
         meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
         meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
         meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
-        #meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1)
+        meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1) # LE=LinearElasticity, used for mesh moving
+        SG2LEAssigner = FunctionAssigner(meshData['fluid']['spaceLE'], meshData['fluid']['spaceSG'].sub(0)) # this assigner extracts mesh velocity and drops Lag. multi.
+        
+        funcVar['fluid']['up'] = Function(meshData['fluid']['spaceNS']) 
+        funcVar['fluid']['up_prime'] = Function(meshData['fluid']['spaceNS']) # _prime marks adjoint variables 
+        funcVar['fluid']['T'] = Function(meshData['fluid']['spaceThermal']) 
+        funcVar['fluid']['T_prime'] = Function(meshData['fluid']['spaceThermal']) 
+        funcVar['fluid']['v'] = Function(meshData['fluid']['spaceSG'])  # shape grad, or say mesh velocity, as well as Lag. multi.
+        funcVar['fluid']['modified_v'] = Function(meshData['fluid']['spaceLE'])  # scaled or otherwise processed shape grad
+        funcVar['fluid']['w'] = Function(meshData['fluid']['spaceLE'])  # final mesh move direction; used in ALE
 
         BCs['fluid']['NS'] = mU.applyNSBCs(meshData, boundary_markers)
         BCs['fluid']['adjNS'] = mU.applyAdjNSBCs(meshData, boundary_markers)
         BCs['fluid']['thermal'] = mU.applyThermalBCs(meshData, boundary_markers)
         BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(meshData, boundary_markers) 
-
-        funcVar['fluid']['up'] = Function(meshData['fluid']['spaceNS'])
-        funcVar['fluid']['up_prime'] = Function(meshData['fluid']['spaceNS']) # _prime marks adjoint variables
-        funcVar['fluid']['T'] = Function(meshData['fluid']['spaceThermal'])
-        funcVar['fluid']['T_prime'] = Function(meshData['fluid']['spaceThermal'])
-        funcVar['fluid']['v'] = Function(meshData['fluid']['spaceSG'])
-        #funcVar['fluid']['w'] = Function(meshData['fluid']['spaceLE'])
+        BCs['fluid']['SG'] = mU.applyShapeGradientBCs(meshData, boundary_markers)
+        BCs['fluid']['LE'] = mU.applyLinearElasticityBCs(meshData, boundary_markers, funcVar, physicalPara)
 
         problemNS = sS.formProblemNS(meshData, BCs, physicalPara, funcVar, systemPara)
         problemAdjNS = sS.formProblemAdjNS(meshData, BCs, physicalPara, funcVar, systemPara)
@@ -150,7 +156,14 @@ for iterNo in range(maxIter):
         solverThermal = sS.formSolverThermal(problemThermal, systemPara)
         solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
         #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
-    
+
+        # now form the problem solving for the shape gradient
+        problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
+        solverSG = sS.formSolverShapeGradient(problemSG, systemPara)   
+        # now form the problem using linear elasiticity to move the mesh
+        problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
+        solverLE = sS.formSolverShapeGradient(problemLE, systemPara) # SG and LE are both simple linear problems, can use the same former 
+
     ########### End of mesh setup and problem definition ###############
     ########### Begining solving systems ###############################
     meshFile = File(args.out_folder+"/mesh.pvd") 
@@ -160,7 +173,7 @@ for iterNo in range(maxIter):
     adj_pFile = File(args.out_folder+"/adj_pressure.pvd")
     tFile = File(args.out_folder+"/temperature.pvd")
     adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
-
+    vFile = File(args.out_folder+"/shape_gradient.pvd")
 
     # Solve problem
     krylov_iters = 0
@@ -168,19 +181,19 @@ for iterNo in range(maxIter):
 
     info("step = {:g}".format(iterNo+1))
     if systemPara['ns'] == "rmturs":
-        with Timer("SolveNS") as t_solve:
+        with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
-    else:
-        with Timer("SolveNS") as t_solve:
+    elif systemPara['ns'] == "variational":
+        with Timer("SolveSystems") as t_solve:
             solverNS.solve()
-            solverAdjNS.solve()
             solverThermal.solve()
             solverAdjThermal.solve()
+            solverAdjNS.solve()
+            solverSG.solve()
 
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
     
-    #(w, lam) = sS.searchDirection(meshData, funcVar)
     if (iterNo % args.ts_per_out==0):
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
@@ -191,6 +204,11 @@ for iterNo in range(maxIter):
         tFile << funcVar['fluid']['T']
         adj_tFile << funcVar['fluid']['T_prime']
         meshFile << mesh
+
+    SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
+    funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
+    solverLE.solve()
+    ALE.move(mesh, funcVar['fluid']['w'])
 
 # Report timings
 list_timings(TimingClear.clear, [TimingType.wall, TimingType.user])
