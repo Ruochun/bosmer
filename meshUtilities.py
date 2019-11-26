@@ -50,7 +50,8 @@ def markBoundaries(mesh):
     slipWall().mark(boundary, 90)
     return boundary    
 
-def applyNSBCs(W, markers):
+def applyNSBCs(meshData, markers):
+    W = meshData['fluid']['spaceNS']
     u0 = 1.0
     if W.mesh().topology().dim() == 2:
         noslip = Constant((0., 0.))
@@ -63,7 +64,8 @@ def applyNSBCs(W, markers):
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     return [bc0, bc1]
 
-def applyAdjNSBCs(W, markers):
+def applyAdjNSBCs(meshData, markers):
+    W = meshData['fluid']['spaceNS']
     if W.mesh().topology().dim() == 2:
         noslip = Constant((0., 0.))
     elif W.mesh().topology().dim() == 3:
@@ -73,11 +75,13 @@ def applyAdjNSBCs(W, markers):
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     return [bc0, bc1, bc90]
 
-def applyThermalBCs(W, markers):
+def applyThermalBCs(meshData, markers):
+    W = meshData['fluid']['spaceThermal']
     bc1 = DirichletBC(W, 0.0, markers, 1)
     return [bc1]
 
-def applyAdjThermalBCs(W, markers):
+def applyAdjThermalBCs(meshData, markers):
+    W = meshData['fluid']['spaceThermal']
     bc1 = DirichletBC(W, 0.0, markers, 1)
     return [bc1]
 

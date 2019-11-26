@@ -89,7 +89,7 @@ else:
         mesh = refine(mesh)
 
 flow_direction = Constant((1.0,0.0))
-justRemeshed = False
+justRemeshed = True
 ##################################
 ####         MAIN PART        ####
 ##################################
@@ -100,7 +100,7 @@ for iterNo in range(maxIter):
     info('* Begining a new iteration *')
     info('*****************************')
 
-    if (iterNo==0) or (justRemeshed):
+    if justRemeshed:
         
         justRemeshed = False
         info('####################################################################')
@@ -120,26 +120,35 @@ for iterNo in range(maxIter):
         # Build function spaces
         pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.0)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
+        Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
-        W_NS = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
-        W_thermal = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
+        Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
+        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+        meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
+        meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
+        #meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1)
 
-        BCs['fluid']['NS'] = mU.applyNSBCs(W_NS, boundary_markers)
-        BCs['fluid']['adjNS'] = mU.applyAdjNSBCs(W_NS, boundary_markers)
-        BCs['fluid']['thermal'] = mU.applyThermalBCs(W_thermal, boundary_markers)
-        BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(W_thermal, boundary_markers) 
+        BCs['fluid']['NS'] = mU.applyNSBCs(meshData, boundary_markers)
+        BCs['fluid']['adjNS'] = mU.applyAdjNSBCs(meshData, boundary_markers)
+        BCs['fluid']['thermal'] = mU.applyThermalBCs(meshData, boundary_markers)
+        BCs['fluid']['adjThermal'] = mU.applyAdjThermalBCs(meshData, boundary_markers) 
 
-        funcVar['fluid']['up'] = Function(W_NS)
-        funcVar['fluid']['up_prime'] = Function(W_NS) # _prime marks adjoint variables
-        funcVar['fluid']['T'] = Function(W_thermal)
-        funcVar['fluid']['T_prime'] = Function(W_thermal)
+        funcVar['fluid']['up'] = Function(meshData['fluid']['spaceNS'])
+        funcVar['fluid']['up_prime'] = Function(meshData['fluid']['spaceNS']) # _prime marks adjoint variables
+        funcVar['fluid']['T'] = Function(meshData['fluid']['spaceThermal'])
+        funcVar['fluid']['T_prime'] = Function(meshData['fluid']['spaceThermal'])
+        funcVar['fluid']['v'] = Function(meshData['fluid']['spaceSG'])
+        #funcVar['fluid']['w'] = Function(meshData['fluid']['spaceLE'])
 
-        problemNS = sS.formProblemNS(meshData, W_NS, BCs, physicalPara, funcVar, systemPara)
-        problemAdjNS = sS.formProblemAdjNS(meshData, W_NS, BCs, physicalPara, funcVar, systemPara)
-        problemThermal = sS.formProblemThermal(meshData, W_thermal, BCs, physicalPara, funcVar, systemPara) 
-        problemAdjThermal = sS.formProblemAdjThermal(meshData, W_thermal, BCs, physicalPara, funcVar, systemPara)
+        problemNS = sS.formProblemNS(meshData, BCs, physicalPara, funcVar, systemPara)
+        problemAdjNS = sS.formProblemAdjNS(meshData, BCs, physicalPara, funcVar, systemPara)
+        problemThermal = sS.formProblemThermal(meshData, BCs, physicalPara, funcVar, systemPara) 
+        problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNS(problemNS, systemPara)
+        solverAdjNS = sS.formSolverNS(problemAdjNS, systemPara) # Adj NS former is the same as the state NS former
+        solverThermal = sS.formSolverThermal(problemThermal, systemPara)
+        solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
         #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
     
     ########### End of mesh setup and problem definition ###############
@@ -147,6 +156,12 @@ for iterNo in range(maxIter):
     meshFile = File(args.out_folder+"/mesh.pvd") 
     uFile = File(args.out_folder+"/velocity.pvd")
     pFile = File(args.out_folder+"/pressure.pvd")
+    adj_uFile = File(args.out_folder+"/adj_velocity.pvd")
+    adj_pFile = File(args.out_folder+"/adj_pressure.pvd")
+    tFile = File(args.out_folder+"/temperature.pvd")
+    adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
+
+
     # Solve problem
     krylov_iters = 0
     solution_time = 0.0
@@ -158,22 +173,31 @@ for iterNo in range(maxIter):
     else:
         with Timer("SolveNS") as t_solve:
             solverNS.solve()
+            solverAdjNS.solve()
+            solverThermal.solve()
+            solverAdjThermal.solve()
+
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
     
+    #(w, lam) = sS.searchDirection(meshData, funcVar)
     if (iterNo % args.ts_per_out==0):
         u_out, p_out = funcVar['fluid']['up'].split()
+        adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
         uFile << u_out
         pFile << p_out
+        adj_uFile << adj_u_out
+        adj_pFile << adj_p_out
+        tFile << funcVar['fluid']['T']
+        adj_tFile << funcVar['fluid']['T_prime']
         meshFile << mesh
-
 
 # Report timings
 list_timings(TimingClear.clear, [TimingType.wall, TimingType.user])
 
 # Get iteration counts
 result = {
-    "ndof": W_NS.dim(), "time": solution_time, "steps": iterNo+1,
+    "ndof": meshData['fluid']['spaceNS'].dim(), "time": solution_time, "steps": iterNo+1,
     "lin_its": krylov_iters, "lin_its_avg": float(krylov_iters)/(iterNo+1)}
 tab = "{:^15} | {:^15} | {:^15} | {:^19} | {:^15}\n".format(
     "No. of DOF", "Steps", "Krylov its", "Krylov its (p.t.s.)", "Time (s)")
