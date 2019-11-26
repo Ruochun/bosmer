@@ -33,6 +33,8 @@ parser.add_argument("--out_folder", type=str, dest="out_folder", default="./resu
                     help="output folder name")
 parser.add_argument("--max_iter", type=int, dest="max_iter", default=10,
                     help="total number of iteration steps")
+parser.add_argument("--sl", type=float, dest="step_length", default=.05,
+                    help="optimization step length multiplier")
 args = parser.parse_args(sys.argv[1:])
 
 parameters["form_compiler"]["quadrature_degree"] = 3
@@ -63,9 +65,9 @@ physicalPara['fluid'] = {}
 maxIter = args.max_iter
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
+physicalPara['stepLen'] = args.step_length
 systemPara['ns'] = args.ns
 systemPara['ls'] = args.ls
-physicalPara['stepLen'] = .05
 
 if args.mesh_file == "__SAMPLE":
     meshData['fluid']['mesh'] = mU.sampleMesh()

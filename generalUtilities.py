@@ -11,3 +11,5 @@ class yPeriodic(SubDomain):
 	def map(self, x, y):
 		y[0] = x[0]
 		y[1] = x[1] - self.shift_dist
+
+
