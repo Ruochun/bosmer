@@ -51,6 +51,7 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
             - div(v)*p 
             + dot(dot(v, nabla_grad(u_)), u) + dot(dot(u_, nabla_grad(v)), u)
             + q*div(u) + dot(grad(T_), v)*T_prime
+            - 2.*inner(grad(u_), grad(v))
         )*dx
     J = derivative(F, w)
     if system['ns'] == "rmturs":
@@ -72,13 +73,15 @@ def formProblemThermal(meshData, BCs, para, Var, system):
     #dT = TrialFunction(Q)
     dx = meshData['fluid']['dx']
     Pe = para['fluid']['Pe']
+    T_hat = para['fluid']['T_hat']
+    h_hat = para['fluid']['h_hat']
     (u_, p_) = split(Var['fluid']['up'])
     ds = meshData['fluid']['ds']
     F = (
             (1./Pe)*dot(grad(T), grad(S))
             + dot(grad(T), u_)*S
-        )*dx + (0.
-            
+        )*dx + (
+            T*S*h_hat - S*h_hat*T_hat
         )*ds(0)
     
     if system['ns'] == "rmturs":
@@ -101,16 +104,21 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
 
     #dT = TrialFunction(Q)
     dx = meshData['fluid']['dx']
+    dX = meshData['fluid']['dX']
     ds = meshData['fluid']['ds']
     Pe = para['fluid']['Pe']
+    T_hat = para['fluid']['T_hat']
+    h_hat = para['fluid']['h_hat']
     (u_, p_) = split(Var['fluid']['up'])
 
     F = (
             (1./Pe)*dot(grad(S), grad(T))
             + dot(grad(S), u_)*T
-        )*dx + (0.
-            
-        )*ds(0)
+        )*dx + (
+            T*S*h_hat
+        )*ds(0) + (
+            S
+        )*dX(90)
 
     if system['ns'] == "rmturs":
         J = derivative(F, T)
@@ -127,13 +135,19 @@ def formProblemShapeGradient(meshData, BCs, para, Var, system):
     dx = meshData['fluid']['dx']
     (u, _) = split(Var['fluid']['up'])
     (u_prime, _) = split(Var['fluid']['up_prime'])
+    T = Var['fluid']['T']
+    T_prime = Var['fluid']['T_prime']
     nu = para['fluid']['nu']
+    Pe = para['fluid']['Pe']
     (w, p) = TrialFunctions(meshData['fluid']['spaceSG'])
     (v, q) = TestFunctions(meshData['fluid']['spaceSG'])
     g = assemble(Constant(1.0)*dx) - meshData['fluid']['initVol']
     
     a = (inner(grad(w) , grad(v))+inner(w,v))*dx+p*inner(v,n)*ds(0)+q*inner(w,n)* ds(0)
-    L = (2.*nu*inner(epsilon(u), epsilon(u_prime)))*inner(n, v)*ds(0) - g*q*ds(0)
+    L = (-2.*nu*inner(epsilon(u), epsilon(u_prime))
+         -1./Pe*dot(grad(T), grad(T_prime))
+         +inner(grad(u), grad(u))
+        )*inner(n, v)*ds(0) - g*q*ds(0)
     problem = LinearVariationalProblem(a, L, Var['fluid']['v'], BCs['fluid']['SG'])
 
     return problem

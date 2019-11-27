@@ -66,6 +66,9 @@ maxIter = args.max_iter
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
 physicalPara['stepLen'] = args.step_length
+physicalPara['fluid']['T_hat'] = 100.
+physicalPara['fluid']['h_hat'] = .1
+
 systemPara['ns'] = args.ns
 systemPara['ls'] = args.ls
 
@@ -94,6 +97,16 @@ else:
 meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
+
+meshFile = File(args.out_folder+"/mesh.pvd")
+uFile = File(args.out_folder+"/velocity.pvd")
+pFile = File(args.out_folder+"/pressure.pvd")
+adj_uFile = File(args.out_folder+"/adj_velocity.pvd")
+adj_pFile = File(args.out_folder+"/adj_pressure.pvd")
+tFile = File(args.out_folder+"/temperature.pvd")
+adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
+vFile = File(args.out_folder+"/shape_gradient.pvd")
+
 ##################################
 ####         MAIN PART        ####
 ##################################
@@ -168,20 +181,10 @@ for iterNo in range(maxIter):
 
     ########### End of mesh setup and problem definition ###############
     ########### Begining solving systems ###############################
-    meshFile = File(args.out_folder+"/mesh.pvd") 
-    uFile = File(args.out_folder+"/velocity.pvd")
-    pFile = File(args.out_folder+"/pressure.pvd")
-    adj_uFile = File(args.out_folder+"/adj_velocity.pvd")
-    adj_pFile = File(args.out_folder+"/adj_pressure.pvd")
-    tFile = File(args.out_folder+"/temperature.pvd")
-    adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
-    vFile = File(args.out_folder+"/shape_gradient.pvd")
-
-    # Solve problem
     krylov_iters = 0
     solution_time = 0.0
 
-    info("step = {:g}".format(iterNo+1))
+    info("step = {:g}, begining to solve...".format(iterNo+1))
     if systemPara['ns'] == "rmturs":
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
@@ -199,13 +202,14 @@ for iterNo in range(maxIter):
     if (iterNo % args.ts_per_out==0):
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
-        uFile << u_out
-        pFile << p_out
-        adj_uFile << adj_u_out
-        adj_pFile << adj_p_out
-        tFile << funcVar['fluid']['T']
-        adj_tFile << funcVar['fluid']['T_prime']
-        meshFile << mesh
+        uFile << (u_out, iterNo)
+        pFile << (p_out, iterNo)
+        adj_uFile << (adj_u_out, iterNo)
+        adj_pFile << (adj_p_out, iterNo)
+        tFile << (funcVar['fluid']['T'], iterNo)
+        adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
+        vFile << (funcVar['fluid']['v'], iterNo)
+        meshFile << (mesh, iterNo)
 
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
     funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
