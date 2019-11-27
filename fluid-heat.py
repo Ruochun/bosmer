@@ -35,7 +35,7 @@ parser.add_argument("--out_folder", type=str, dest="out_folder", default="./resu
                     help="output folder name")
 parser.add_argument("--max_iter", type=int, dest="max_iter", default=10,
                     help="total number of iteration steps")
-parser.add_argument("--sl", type=float, dest="step_length", default=.05,
+parser.add_argument("--sl", type=float, dest="step_length", default=.005,
                     help="optimization step length multiplier")
 args = parser.parse_args(sys.argv[1:])
 
@@ -96,7 +96,7 @@ else:
             fid.close()
         except:
             info("This mesh is not valid to read in.")
-    boundary_points = []
+    meshData['fluid']['bndExPts'] = []
 
     for i in range(args.level):
         mesh = refine(mesh)
@@ -116,6 +116,8 @@ adj_pFile = File(args.out_folder+"/adj_pressure.pvd")
 tFile = File(args.out_folder+"/temperature.pvd")
 adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
 vFile = File(args.out_folder+"/shape_gradient.pvd")
+
+#info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
 
 ##################################
 ####         MAIN PART        ####
@@ -149,7 +151,6 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        # Build function spaces
         pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.0)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
@@ -185,7 +186,6 @@ for iterNo in range(systemPara['maxIter']):
         solverAdjNS = sS.formSolverNS(problemAdjNS, systemPara) # Adj NS former is the same as the state NS former
         solverThermal = sS.formSolverThermal(problemThermal, systemPara)
         solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
-        #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
 
         # now form the problem solving for the shape gradient
         problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
