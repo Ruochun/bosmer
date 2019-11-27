@@ -26,7 +26,9 @@ parser.add_argument("--Pe", type=float, dest="Pe", default=10.,
 parser.add_argument("--ls", type=str, dest="ls", default="iterative",
                     choices=["direct", "iterative"], help="linear solver, choose from direct or iterative")
 parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
-                    help="number of ts per output file")
+                    help="number of time steps per output file")
+parser.add_argument("--ts_per_rm", type=int, dest="ts_per_rm", default=5,
+                    help="number of time steps per remesh, use -1 to never remesh")
 parser.add_argument("--mesh_file", type=str, dest="mesh_file", default="__SAMPLE",
                     help="path and file name of the mesh, or do not specify to use the defualt sample mesh")
 parser.add_argument("--out_folder", type=str, dest="out_folder", default="./result",
@@ -61,8 +63,7 @@ physicalPara['fluid'] = {}
 # we don't currently have a solid system
 
 
-# load in system settings
-maxIter = args.max_iter
+# load in system settings and physical parameters
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
 physicalPara['stepLen'] = args.step_length
@@ -71,11 +72,17 @@ physicalPara['fluid']['h_hat'] = .1
 
 systemPara['ns'] = args.ns
 systemPara['ls'] = args.ls
+if args.ts_per_rm>0:
+    systemPara['ts_per_rm'] = args.ts_per_rm
+else:
+    systemPara['ts_per_rm'] = 9223372036854775807
+systemPara['maxIter'] = args.max_iter
+systemPara['ts_per_out'] = args.ts_per_out
 
 if args.mesh_file == "__SAMPLE":
     meshData['fluid']['mesh'] = mU.sampleMesh()
     mesh = meshData['fluid']['mesh']
-    boundary_points = [1., .5]
+    meshData['fluid']['bndExPts'] = [1., .5]
 else:
     try:
         meshData['fluid']['mesh'] = Mesh(args.mesh_file)
@@ -95,8 +102,11 @@ else:
         mesh = refine(mesh)
 
 meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
+meshData['fluid']['initNumCells'] = mesh.num_cells()
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
+krylov_iters = 0
+solution_time = 0.0
 
 meshFile = File(args.out_folder+"/mesh.pvd")
 uFile = File(args.out_folder+"/velocity.pvd")
@@ -111,18 +121,18 @@ vFile = File(args.out_folder+"/shape_gradient.pvd")
 ####         MAIN PART        ####
 ##################################
 
-for iterNo in range(maxIter):
+for iterNo in range(systemPara['maxIter']):
 
-    info('*****************************')
-    info('* Begining a new iteration *')
-    info('*****************************')
+    info('############################################')
+    info('# A new iteration, iteration {:g} has begun! #'.format(iterNo+1))
+    info('############################################')
 
     if justRemeshed:
         
         justRemeshed = False
-        info('####################################################################')
-        info('Setting up function spaces and problem definitions for the new mesh!')
-        info('####################################################################')
+        info('**********************************************')
+        info('Forming problems and solvers for the new mesh!')
+        info('**********************************************')
 
         meshData['fluid']['subdomain'] = mU.markSubDomains(mesh)
         subDomain_markers = meshData['fluid']['subdomain']
@@ -133,6 +143,11 @@ for iterNo in range(maxIter):
         meshData['fluid']['dx'] = Measure("dx", domain=mesh, subdomain_id="everywhere")
         meshData['fluid']['dX'] = Measure("dx", domain=mesh, subdomain_data=subDomain_markers)
         meshData['fluid']['ds'] = Measure("ds", domain=mesh, subdomain_data=boundary_markers)
+        try: 
+            meshData['fluid']['bndVIDs'] = mU.getSeedVerticesFromPts(meshData, 'fluid')
+        except:
+            meshData['fluid']['bndVIDs'] = []
+            info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         # Build function spaces
         pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.0)
@@ -179,12 +194,16 @@ for iterNo in range(maxIter):
         problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
         solverLE = sS.formSolverShapeGradient(problemLE, systemPara) # SG and LE are both simple linear problems, can use the same former 
 
+        info('****************************************')
+        info('Problems and solvers sucessfully formed!')
+        info('****************************************')
     ########### End of mesh setup and problem definition ###############
-    ########### Begining solving systems ###############################
-    krylov_iters = 0
-    solution_time = 0.0
 
-    info("step = {:g}, begining to solve...".format(iterNo+1))
+    ########### Begining solving systems ###############################
+    info('------------------------------')
+    info("Begining to solve systems...")
+    info('------------------------------')
+    
     if systemPara['ns'] == "rmturs":
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
@@ -199,7 +218,7 @@ for iterNo in range(maxIter):
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
     
-    if (iterNo % args.ts_per_out==0):
+    if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
         uFile << (u_out, iterNo)
@@ -211,10 +230,18 @@ for iterNo in range(maxIter):
         vFile << (funcVar['fluid']['v'], iterNo)
         meshFile << (mesh, iterNo)
 
+    # now move the mesh and remesh (if needed)
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
     funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
     solverLE.solve()
     ALE.move(mesh, funcVar['fluid']['w'])
+
+    if (iterNo+1) % systemPara['ts_per_rm']==0:
+        meshData['fluid']['bndExPts'] = mU.getSeedPtsFromVertices(meshData, 'fluid')
+        meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid') 
+        mesh = meshData['fluid']['mesh']
+        assert mesh is not None
+        justRemeshed = True
 
 # Report timings
 list_timings(TimingClear.clear, [TimingType.wall, TimingType.user])
