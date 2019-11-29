@@ -13,6 +13,15 @@ def sigma(u):
 
 ###### now begining form problems ########
 
+def computeObj(meshData, para, Var):
+    dx = meshData['fluid']['dx']
+    dX = meshData['fluid']['dX']
+    T = Var['fluid']['T']
+    (u, _) = split(Var['fluid']['up'])
+    M1 = para['objWeight']*(-T)*dX(90) # heat obj
+    M2 = inner(grad(u), grad(u))*dx # dissp obj
+    return assemble(M1), assemble(M2)
+
 def formProblemNS(meshData, BCs, para, Var, system):
     W = meshData['fluid']['spaceNS']
     (v, q) = TestFunctions(W)

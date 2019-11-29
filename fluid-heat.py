@@ -17,12 +17,14 @@ parser = argparse.ArgumentParser(description=__doc__, formatter_class=
                                  argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--ns", type=str, dest="ns", default="variational",
                     choices=["variational", "rmturs"],help="non-linear solver, rmturs or FEniCS variational solver")
-parser.add_argument("-l", type=int, dest="level", default=0,
+parser.add_argument("-refine_level","-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
 parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
                     help="kinematic viscosity")
 parser.add_argument("--Pe", type=float, dest="Pe", default=10.,
                     help="Peclet number for thermal system")
+parser.add_argument("--obj_weight", "-w", type=float, dest="obj_weight", default=1.,
+                    help="Add a multiplier (weight) to the temperature objective, emphasis it more")
 parser.add_argument("--ls", type=str, dest="ls", default="iterative",
                     choices=["direct", "iterative"], help="linear solver, choose from direct or iterative")
 parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
@@ -54,12 +56,15 @@ BCs = {} # BC sets
 funcVar = {} # state and adjoint variables
 physicalPara = {} # physical parameters of this problem
 systemPara = {} # system parameters
+outputData = {} # outputs for postprocessing
 
 # we have a fluid system
 meshData['fluid'] = {}
 BCs['fluid'] = {}
 funcVar['fluid'] = {}
 physicalPara['fluid'] = {}
+outputData['objHeat'] = []
+outputData['objDissp'] = [] 
 # we don't currently have a solid system
 
 
@@ -69,6 +74,7 @@ physicalPara['fluid']['Pe'] = args.Pe
 physicalPara['stepLen'] = args.step_length
 physicalPara['fluid']['T_hat'] = 100.
 physicalPara['fluid']['h_hat'] = .1
+physicalPara['objWeight'] = args.obj_weight
 
 systemPara['ns'] = args.ns
 systemPara['ls'] = args.ls
@@ -203,7 +209,7 @@ for iterNo in range(systemPara['maxIter']):
     info('------------------------------')
     info("Begining to solve systems...")
     info('------------------------------')
-    
+
     if systemPara['ns'] == "rmturs":
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
@@ -217,7 +223,11 @@ for iterNo in range(systemPara['maxIter']):
 
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
-    
+
+    (objHeat, objDissp) = sS.computeObj(meshData, physicalPara, funcVar)
+    outputData['objHeat'].append(objHeat)
+    outputData['objDissp'].append(objDissp)
+
     if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
@@ -256,6 +266,10 @@ tab += "{ndof:>9}       | {steps:^15} | {lin_its:^15} | " \
        "{lin_its_avg:^19.1f} | {time:^15.2f}\n".format(**result)
 print("\nSummary of iteration counts:")
 print(tab)
+
+print("-----------------------------------------------------------------")
+print("objHeat: ", outputData['objHeat'])
+print("objDissp: ", outputData['objDissp']) 
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)
 
@@ -263,15 +277,13 @@ print(tab)
 #u, p = w.split()
 #size = MPI.size(mesh.mpi_comm())
 #rank = MPI.rank(mesh.mpi_comm())
-"""
-pyplot.figure()
-pyplot.subplot(2, 1, 1)
-plot(u, title="velocity")
-pyplot.subplot(2, 1, 2)
-plot(p, title="pressure")
-pyplot.savefig("figure_v_p_size{}_rank{}.pdf".format(size, rank))
-pyplot.figure()
-plot(p, title="pressure", mode="warp")
-pyplot.savefig("figure_warp_size{}_rank{}.pdf".format(size, rank))
-pyplot.show()
-"""
+#pyplot.figure()
+#pyplot.subplot(2, 1, 1)
+#plot(u, title="velocity")
+#pyplot.subplot(2, 1, 2)
+#plot(p, title="pressure")
+#pyplot.savefig("figure_v_p_size{}_rank{}.pdf".format(size, rank))
+#pyplot.figure()
+#plot(p, title="pressure", mode="warp")
+#pyplot.savefig("figure_warp_size{}_rank{}.pdf".format(size, rank))
+#pyplot.show()
