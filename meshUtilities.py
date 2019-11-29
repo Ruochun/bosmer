@@ -4,13 +4,20 @@ from mshr import *
 import numpy
 import os
 
-def sampleMesh(res=50):
-    domain_r = (
-                Rectangle(Point(0.,0.), Point(3.,1.))
-                - Rectangle(Point(1.,.4), Point(2.,.6))
-               )    
+def sampleMesh(system, res=100):
+    domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+    ref_num_cells = system['fluid']['recRes']
+    bnd_pts = []
+    for i in range(20):
+        pos_x = .8*i + 8.
+        pos_y = .8*((i+1)%2) + .25
+        domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
+        bnd_pts.append(pos_x+.4)
+        bnd_pts.append(pos_y)
     mesh = generate_mesh(domain_r, res)
-    return mesh
+    while mesh.num_cells() < ref_num_cells:
+        mesh = refine(mesh)
+    return mesh, bnd_pts
 
 def fluidBCs():
 
@@ -26,11 +33,12 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>2.8) 
+            return not(on_boundary) and (x[0]>28.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
+    eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
     boundary.set_all(99)
     class solidWall(SubDomain):
@@ -38,13 +46,13 @@ def markBoundaries(mesh):
             return on_boundary
     class inflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]<DOLFIN_EPS
+            return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>3.-DOLFIN_EPS
+            return on_boundary and x[0]>32.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<DOLFIN_EPS or x[1]>1.-DOLFIN_EPS)
+            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)
@@ -64,7 +72,7 @@ def applyNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1] # slip not added
+    return [bc0, bc1, bc90] # slip not added
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -75,7 +83,7 @@ def applyAdjNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1] # slip not added
+    return [bc0, bc1, bc90] # slip not added
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']

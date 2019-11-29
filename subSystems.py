@@ -126,7 +126,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         )*dx + (
             T*S*h_hat
         )*ds(0) + (
-            S
+            para['objWeight']*S
         )*dX(90)
 
     if system['ns'] == "rmturs":

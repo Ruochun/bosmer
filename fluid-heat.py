@@ -37,8 +37,10 @@ parser.add_argument("--out_folder", type=str, dest="out_folder", default="./resu
                     help="output folder name")
 parser.add_argument("--max_iter", type=int, dest="max_iter", default=10,
                     help="total number of iteration steps")
-parser.add_argument("--sl", type=float, dest="step_length", default=.005,
+parser.add_argument("--sl", "-s", type=float, dest="step_length", default=.005,
                     help="optimization step length multiplier")
+parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", default=-1,
+                    help="instruct the code to generate mesh that has at least this many elements")
 args = parser.parse_args(sys.argv[1:])
 
 parameters["form_compiler"]["quadrature_degree"] = 3
@@ -63,6 +65,7 @@ meshData['fluid'] = {}
 BCs['fluid'] = {}
 funcVar['fluid'] = {}
 physicalPara['fluid'] = {}
+systemPara['fluid'] = {}
 outputData['objHeat'] = []
 outputData['objDissp'] = [] 
 # we don't currently have a solid system
@@ -84,11 +87,11 @@ else:
     systemPara['ts_per_rm'] = 9223372036854775807
 systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
+systemPara['fluid']['recRes'] = args.recRes
 
 if args.mesh_file == "__SAMPLE":
-    meshData['fluid']['mesh'] = mU.sampleMesh()
+    meshData['fluid']['mesh'], meshData['fluid']['bndExPts'] = mU.sampleMesh(systemPara)
     mesh = meshData['fluid']['mesh']
-    meshData['fluid']['bndExPts'] = [1., .5]
 else:
     try:
         meshData['fluid']['mesh'] = Mesh(args.mesh_file)
@@ -157,7 +160,7 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.0)
+        pbc = None#gU.yPeriodic(mapFrom=0.0, mapTo=1.6)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
