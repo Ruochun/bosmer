@@ -1,7 +1,7 @@
 from dolfin import *
 
 class yPeriodic(SubDomain):
-	def __init__(self, tolerance=DOLFIN_EPS, mapFrom=0.0, mapTo=1.0):
+	def __init__(self, tolerance=1e-6, mapFrom=0.0, mapTo=1.0):
 		SubDomain.__init__(self)
 		self.tol = abs(tolerance)
 		self.lower = mapFrom
