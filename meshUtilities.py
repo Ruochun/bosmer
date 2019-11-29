@@ -1,19 +1,32 @@
 from dolfin import *
 import generalUtilities as gU
 from mshr import *
-import numpy
+import numpy as np
 import os
 
-def sampleMesh(system, res=100):
-    domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+def sampleMesh(system, msh_name, res=100):
     ref_num_cells = system['fluid']['recRes']
     bnd_pts = []
-    for i in range(20):
-        pos_x = .8*i + 8.
-        pos_y = .8*((i+1)%2) + .25
-        domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
-        bnd_pts.append(pos_x+.4)
-        bnd_pts.append(pos_y)
+    if msh_name == "FINS":
+        domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+        for i in range(20):
+            pos_x = .8*i + 8.
+            pos_y = .8*((i+1)%2) + .25
+            domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
+            bnd_pts.append(pos_x+.4)
+            bnd_pts.append(pos_y)
+    elif msh_name == "CIRCLES":
+        domain_r = Rectangle(Point(0.,0.), Point(70.,.8))
+        side = np.sqrt(np.pi*(.15**2))/2
+        cy = .4
+        for i in range(50):
+            cx = .7*i + 70./4
+            domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
+            bnd_pts.append(cx)
+            bnd_pts.append(cy+side/2)
+    else:
+        info("!!!!! Unknown sample mesh type !!!!!")
+        return None
     mesh = generate_mesh(domain_r, res)
     while mesh.num_cells() < ref_num_cells:
         mesh = refine(mesh)
@@ -33,7 +46,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>28.) 
+            return not(on_boundary) and (x[0]>65.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -49,10 +62,10 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>32.-eps
+            return on_boundary and x[0]>70.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
+            return on_boundary and (x[1]<eps or x[1]>.8-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)
@@ -125,7 +138,7 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
 
 def getCellNormals(mesh):
     i = 0;
-    cellnormals = numpy.zeros([mesh.num_cells(),])
+    cellnormals = np.zeros([mesh.num_cells(),])
     for cell in cells(mesh):
         cellnormals[i] =  cell.cell_normal()[2]
         i = i+1;
@@ -200,7 +213,7 @@ def getSeedPtsFromVertices(meshData, physics):
 # output: a sequence of boundary vertices that go thru the point
 def getBoundaryVerticesFromPoint(mesh, pnt):
     
-    tol = 0.0001**2
+    tol = 0.0001
     #tol = 0.00005**2
     boundary = BoundaryMesh(mesh,"exterior")
     coord = boundary.coordinates()
@@ -250,7 +263,7 @@ def getBoundaryVerticesFromPoint(mesh, pnt):
                 BoundaryVerticies.append(v1)
                 break;
         if v1==SeedVertexId:
-            print ('loop formed: number of vertices', len(BoundaryVerticies))
+            # print ('loop formed: number of vertices', len(BoundaryVerticies)) ## give loop infos
             return BoundaryVerticies
             break
 
@@ -321,10 +334,10 @@ def createMeshViaTriangle(meshData, physics):
             for j in range(0,len(boundaryVertices)-1):
                 cordx.append(coor[boundaryVertices[j]][0])
                 cordy.append(coor[boundaryVertices[j]][1])
-            cx = (numpy.amax(cordx)+numpy.amin(cordx))/2.
-            cy = (numpy.amax(cordy)+numpy.amin(cordy))/2.
-            print ("boundary points x: ", cordx)
-            print ("boundary points y: ", cordy)
+            cx = (np.amax(cordx)+np.amin(cordx))/2.
+            cy = (np.amax(cordy)+np.amin(cordy))/2.
+            #print ("boundary points x: ", cordx) ##
+            #print ("boundary points y: ", cordy) ## given bnd points info
             #print "len cordx", len(cordx), len(cordy)
             #print "len of boundary vertices", len(boundaryVertices), cx, cy
             meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))

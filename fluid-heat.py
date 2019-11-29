@@ -31,8 +31,8 @@ parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
                     help="number of time steps per output file")
 parser.add_argument("--ts_per_rm", type=int, dest="ts_per_rm", default=5,
                     help="number of time steps per remesh, use -1 to never remesh")
-parser.add_argument("--mesh_file", type=str, dest="mesh_file", default="__SAMPLE",
-                    help="path and file name of the mesh, or do not specify to use the defualt sample mesh")
+parser.add_argument("--mesh_file", "-m", type=str, dest="mesh_file", default="__FINS",
+                    help="path and file name of the mesh, or add \'__\' in front of the mesh to use one of the default sample meshes")
 parser.add_argument("--out_folder", type=str, dest="out_folder", default="./result",
                     help="output folder name")
 parser.add_argument("--max_iter", type=int, dest="max_iter", default=10,
@@ -41,6 +41,8 @@ parser.add_argument("--sl", "-s", type=float, dest="step_length", default=.005,
                     help="optimization step length multiplier")
 parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", default=-1,
                     help="instruct the code to generate mesh that has at least this many elements")
+parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
+                    help="volume constraint, supply a number, or a number and a '\*'\ in the end allowing the initial domain to expand that many times larger (or smaller)")
 args = parser.parse_args(sys.argv[1:])
 
 parameters["form_compiler"]["quadrature_degree"] = 3
@@ -89,8 +91,8 @@ systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
 systemPara['fluid']['recRes'] = args.recRes
 
-if args.mesh_file == "__SAMPLE":
-    meshData['fluid']['mesh'], meshData['fluid']['bndExPts'] = mU.sampleMesh(systemPara)
+if args.mesh_file[:2] == "__":
+    meshData['fluid']['mesh'], meshData['fluid']['bndExPts'] = mU.sampleMesh(systemPara, args.mesh_file[2:])
     mesh = meshData['fluid']['mesh']
 else:
     try:
@@ -110,7 +112,12 @@ else:
     for i in range(args.level):
         mesh = refine(mesh)
 
-meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
+assert mesh is not None
+
+if args.volCons[-1] == "*":
+    meshData['fluid']['initVol'] = float(args.volCons[:-1])*assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
+else:
+    meshData['fluid']['initVol'] = float(args.volCons)
 meshData['fluid']['initNumCells'] = mesh.num_cells()
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
