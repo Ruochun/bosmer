@@ -100,7 +100,7 @@ def applyAdjNSBCs(meshData, markers):
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
-    bc1 = DirichletBC(W, 0.0, markers, 1)
+    bc1 = DirichletBC(W, 300., markers, 1)
     return [bc1]
 
 def applyAdjThermalBCs(meshData, markers):

@@ -21,7 +21,7 @@ parser.add_argument("-refine_level","-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
 parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
                     help="kinematic viscosity")
-parser.add_argument("--Pe", type=float, dest="Pe", default=10.,
+parser.add_argument("--Pe", type=float, dest="Pe", default=1./(0.5918/(4179.6)),
                     help="Peclet number for thermal system")
 parser.add_argument("--obj_weight", "-w", type=float, dest="obj_weight", default=1.,
                     help="Add a multiplier (weight) to the temperature objective, emphasis it more")
@@ -77,7 +77,7 @@ outputData['objDissp'] = []
 physicalPara['fluid']['nu'] = args.viscosity
 physicalPara['fluid']['Pe'] = args.Pe
 physicalPara['stepLen'] = args.step_length
-physicalPara['fluid']['T_hat'] = 100.
+physicalPara['fluid']['T_hat'] = 373.
 physicalPara['fluid']['h_hat'] = .1
 physicalPara['objWeight'] = args.obj_weight
 
@@ -199,7 +199,7 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNS(problemNS, systemPara)
-        solverAdjNS = sS.formSolverNS(problemAdjNS, systemPara) # Adj NS former is the same as the state NS former
+        solverAdjNS = sS.formSolverThermal(problemAdjNS, systemPara) # Adj NS former is the same as the state NS former
         solverThermal = sS.formSolverThermal(problemThermal, systemPara)
         solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
 

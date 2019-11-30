@@ -46,8 +46,11 @@ def formProblemNS(meshData, BCs, para, Var, system):
 def formProblemAdjNS(meshData, BCs, para, Var, system):
     W = meshData['fluid']['spaceNS']
     (v, q) = TestFunctions(W)
-    w = Var['fluid']['up_prime']
-    (u, p) = split(w)
+    if system['ns'] == "rmturs":
+        w = Var['fluid']['up_prime']
+        (u, p) = split(w)
+    elif system['ns'] == "variational":
+        (u, p) = TrialFunctions(W)
     #dw = TrialFunction(W)
     dx = meshData['fluid']['dx']
     nu = para['fluid']['nu']
@@ -62,13 +65,14 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
             + q*div(u) + dot(grad(T_), v)*T_prime
             - 2.*inner(grad(u_), grad(v))
         )*dx
-    J = derivative(F, w)
     if system['ns'] == "rmturs":
+        J = derivative(F, w)
         assem = rmtursAssembler(J, F, BCs['fluid']['adjNS'])
         problem = rmtursNonlinearProblem(assem)
     elif system['ns'] == "variational":
-        problem = NonlinearVariationalProblem(F, w, BCs['fluid']['adjNS'], J)
-    
+        #problem = NonlinearVariationalProblem(F, w, BCs['fluid']['adjNS'], J)
+        a, L = lhs(F), rhs(F)
+        problem = LinearVariationalProblem(a, L, Var['fluid']['up_prime'], BCs['fluid']['adjNS'])
     return problem
 
 def formProblemThermal(meshData, BCs, para, Var, system):
@@ -192,6 +196,14 @@ def formSolverNS(problem, system):
         solver = NonlinearVariationalSolver(problem)
         solver.parameters['newton_solver']['relative_tolerance'] = 1E-4
         solver.parameters['newton_solver']['maximum_iterations'] = 5
+        if system['ls'] == "iterative":
+            solver.parameters['newton_solver']['linear_solver'] = 'gmres'
+            solver.parameters['newton_solver']['preconditioner'] = 'default'
+            #solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
+            #solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 1E-5
+            #solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 100
+            #solver.parameters['newton_solver']['krylov_solver']['restart'] = 20
+            #solver.parameters['newton_solver']['krylov_solver']['preconditioner']['ilu']['fill_level'] = 0
 
     return solver
 
