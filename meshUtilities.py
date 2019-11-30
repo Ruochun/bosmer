@@ -16,11 +16,11 @@ def sampleMesh(system, msh_name, res=100):
             bnd_pts.append(pos_x+.4)
             bnd_pts.append(pos_y)
     elif msh_name == "CIRCLES":
-        domain_r = Rectangle(Point(0.,0.), Point(70.,.8))
+        domain_r = Rectangle(Point(0.,0.), Point(28.,.8))
         side = np.sqrt(np.pi*(.15**2))/2
         cy = .4
-        for i in range(50):
-            cx = .7*i + 70./4
+        for i in range(20):
+            cx = .7*i + 28./4
             domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
             bnd_pts.append(cx)
             bnd_pts.append(cy+side/2)
@@ -46,7 +46,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>65.) 
+            return not(on_boundary) and (x[0]>28.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -62,10 +62,10 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>70.-eps
+            return on_boundary and x[0]>32.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>.8-eps)
+            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)

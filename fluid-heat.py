@@ -21,11 +21,11 @@ parser.add_argument("-refine_level","-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
 parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
                     help="kinematic viscosity")
-parser.add_argument("--Pe", type=float, dest="Pe", default=1./(0.5918/(4179.6)),
+parser.add_argument("--Pe", type=float, dest="Pe", default=1000.,#1./(0.5918/(4179.6)),
                     help="Peclet number for thermal system")
 parser.add_argument("--obj_weight", "-w", type=float, dest="obj_weight", default=1.,
                     help="Add a multiplier (weight) to the temperature objective, emphasis it more")
-parser.add_argument("--ls", type=str, dest="ls", default="iterative",
+parser.add_argument("--ls", type=str, dest="ls", default="direct",
                     choices=["direct", "iterative"], help="linear solver, choose from direct or iterative")
 parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
                     help="number of time steps per output file")
@@ -113,12 +113,14 @@ else:
         mesh = refine(mesh)
 
 assert mesh is not None
-
 if args.volCons[-1] == "*":
     meshData['fluid']['initVol'] = float(args.volCons[:-1])*assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 else:
     meshData['fluid']['initVol'] = float(args.volCons)
 meshData['fluid']['initNumCells'] = mesh.num_cells()
+meshData['fluid']['hmax'] = mesh.hmax()
+meshData['fluid']['hmin'] = mesh.hmin()
+
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
 krylov_iters = 0
@@ -261,6 +263,8 @@ for iterNo in range(systemPara['maxIter']):
         meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid') 
         mesh = meshData['fluid']['mesh']
         assert mesh is not None
+        meshData['fluid']['hmax'] = mesh.hmax()     
+        meshData['fluid']['hmin'] = mesh.hmin()
         justRemeshed = True
 
 # Report timings
@@ -279,6 +283,7 @@ print(tab)
 
 print("-----------------------------------------------------------------")
 print("objHeat: ", outputData['objHeat'])
+print("    ")
 print("objDissp: ", outputData['objDissp']) 
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)

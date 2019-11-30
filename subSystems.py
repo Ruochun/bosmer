@@ -31,10 +31,18 @@ def formProblemNS(meshData, BCs, para, Var, system):
     dx = meshData['fluid']['dx']
     nu = para['fluid']['nu']
 
+    #h_ugn = meshData['fluid']['hmax']
+    #h_rgn = meshData['fluid']['hmin']
+    #tau_sugn3 = h_rgn**2/(4.0*nu)
+    #tau_supg = 1.0/sqrt(4.0/h_ugn**2 + 1.0/tau_sugn3**2)
+    #tau_pspg = tau_supg
+    #momEqn = - div(nu*grad(u)) + grad(u)*u + grad(p)
+    #F_stab = (tau_supg*inner(grad(v)*u, momEqn) + tau_pspg*inner(grad(q), momEqn))*dx
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
+    #F = F + F_stab
     J = derivative(F, w)
     if system['ns'] == "rmturs":
         assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
@@ -201,7 +209,7 @@ def formSolverNS(problem, system):
             solver.parameters['newton_solver']['preconditioner'] = 'default'
             #solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
             #solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 1E-5
-            #solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 100
+            solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 100
             #solver.parameters['newton_solver']['krylov_solver']['restart'] = 20
             #solver.parameters['newton_solver']['krylov_solver']['preconditioner']['ilu']['fill_level'] = 0
 
