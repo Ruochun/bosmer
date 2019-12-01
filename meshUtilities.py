@@ -46,7 +46,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>28.) 
+            return not(on_boundary) and (x[0]>25.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -62,10 +62,10 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>32.-eps
+            return on_boundary and x[0]>28.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
+            return on_boundary and (x[1]<eps or x[1]>.8-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)

@@ -113,6 +113,7 @@ else:
         mesh = refine(mesh)
 
 assert mesh is not None
+print(assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere")))
 if args.volCons[-1] == "*":
     meshData['fluid']['initVol'] = float(args.volCons[:-1])*assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 else:
