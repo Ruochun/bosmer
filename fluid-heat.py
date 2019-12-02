@@ -29,7 +29,7 @@ parser.add_argument("--ls", type=str, dest="ls", default="direct",
                     choices=["direct", "iterative"], help="linear solver, choose from direct or iterative")
 parser.add_argument("--ts_per_out", type=int, dest="ts_per_out", default=1,
                     help="number of time steps per output file")
-parser.add_argument("--ts_per_rm", type=int, dest="ts_per_rm", default=5,
+parser.add_argument("--ts_per_rm", type=int, dest="ts_per_rm", default=-1,
                     help="number of time steps per remesh, use -1 to never remesh")
 parser.add_argument("--mesh_file", "-m", type=str, dest="mesh_file", default="__FINS",
                     help="path and file name of the mesh, or add \'__\' in front of the mesh to use one of the default sample meshes")
@@ -106,6 +106,7 @@ else:
             fid.read(mesh, 'mesh', False)
             fid.close()
         except:
+            mesh = None
             info("This mesh is not valid to read in.")
     meshData['fluid']['bndExPts'] = []
 
@@ -113,7 +114,9 @@ else:
         mesh = refine(mesh)
 
 assert mesh is not None
-print(assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere")))
+
+print("FLuid mesh has volume: ", assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere")))
+
 if args.volCons[-1] == "*":
     meshData['fluid']['initVol'] = float(args.volCons[:-1])*assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 else:
