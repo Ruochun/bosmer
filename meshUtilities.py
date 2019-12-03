@@ -293,56 +293,54 @@ def createMeshViaTriangle(meshData, physics):
     points = meshData[physics]['bndExPts']
     ref_num_cells = meshData[physics]['initNumCells']
 
-    scale = 1.
+    maxArea = 0
+    minArea = 1000
+    for i in cells(mesh):
+        if i.volume() > maxArea:
+            maxArea = i.volume()
+        if i.volume() < minArea:
+            minArea = i.volume()
+        
+    boundary = BoundaryMesh(mesh,"exterior")
+    meshfile = open("obstaclemesh.poly", "w")
+    #Writing node information for the PSLG file
+    meshfile.write ( '%d \t 2 \t 0 \t 0 \n '%boundary.num_vertices())
+    coor = boundary.coordinates()
+    mapping = boundary.entity_map(0).array()
+    for i in vertices (boundary) :
+        meshfile.write('%d \t %g \t %g \n'%(i.index(), coor[i.index()][0],
+                                            coor[i. index() ][1]) )
+
+    #Writing edge information for the PSLG file
+    # Planar Straight Line Graph (PSLG)
+    meshfile.write('%d \t 0 \n'%boundary.num_edges())
+    for i in edges(boundary):
+        meshfile.write('%d \t %d \t %d \n'%(i.index(),i.entities(0)[0],i.entities(0) [1]) )
+
+    num_holes = len(points)//2
+    #Writing hole information, (cx, cy), for the PSLG f i l e
+    meshfile.write('%d \n'% num_holes)
+    for i in range(0,num_holes):
+        boundaryVertices = getBoundaryVerticesFromPoint(mesh, [points[2*i], points[2*i+1]])
+        cordx = []
+        cordy = []
+        for j in range(0,len(boundaryVertices)-1):
+            cordx.append(coor[boundaryVertices[j]][0])
+            cordy.append(coor[boundaryVertices[j]][1])
+        cx = (np.amax(cordx)+np.amin(cordx))/2.
+        cy = (np.amax(cordy)+np.amin(cordy))/2.
+        #print ("boundary points x: ", cordx) ##
+        #print ("boundary points y: ", cordy) ## given bnd points info
+        #print "len cordx", len(cordx), len(cordy)
+        #print "len of boundary vertices", len(boundaryVertices), cx, cy
+        meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
+
+    meshfile.close ()
+
     maxAllowedIters = 10
+    scale = 1.
     for k in range(maxAllowedIters):
-        maxArea = 0
-        minArea = 1000
-        for i in cells(mesh):
-            if i.volume() > maxArea:
-                maxArea = i.volume()
-            if i.volume() < minArea:
-                minArea = i.volume()
-        
-        #scale = .5
         maxArea = maxArea*scale
-        
-
-        boundary = BoundaryMesh(mesh,"exterior")
-        meshfile = open("obstaclemesh.poly", "w")
-        #Writing node information for the PSLG file
-        meshfile.write ( '%d \t 2 \t 0 \t 0 \n '%boundary.num_vertices())
-        coor = boundary.coordinates()
-        mapping = boundary.entity_map(0).array()
-        for i in vertices (boundary) :
-            meshfile.write('%d \t %g \t %g \n'%(i.index(), coor[i.index()][0],
-                                                coor[i. index() ][1]) )
-
-        #Writing edge information for the PSLG file
-        # Planar Straight Line Graph (PSLG)
-        meshfile.write('%d \t 0 \n'%boundary.num_edges())
-        for i in edges(boundary):
-            meshfile.write('%d \t %d \t %d \n'%(i.index(),i.entities(0)[0],i.entities(0) [1]) )
-
-        num_holes = len(points)//2
-        #Writing hole information, (cx, cy), for the PSLG f i l e
-        meshfile.write('%d \n'% num_holes)
-        for i in range(0,num_holes):
-            boundaryVertices = getBoundaryVerticesFromPoint(mesh, [points[2*i], points[2*i+1]])
-            cordx = []
-            cordy = []
-            for j in range(0,len(boundaryVertices)-1):
-                cordx.append(coor[boundaryVertices[j]][0])
-                cordy.append(coor[boundaryVertices[j]][1])
-            cx = (np.amax(cordx)+np.amin(cordx))/2.
-            cy = (np.amax(cordy)+np.amin(cordy))/2.
-            #print ("boundary points x: ", cordx) ##
-            #print ("boundary points y: ", cordy) ## given bnd points info
-            #print "len cordx", len(cordx), len(cordy)
-            #print "len of boundary vertices", len(boundaryVertices), cx, cy
-            meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
-
-        meshfile.close ()
         triangle_syntax = './triangle'
         triangle_syntax = triangle_syntax + ' -Qpqa'+str (maxArea) +' obstaclemesh'
         # Q: quiet, q: quality, c: add segments on convex hull, a: max area
