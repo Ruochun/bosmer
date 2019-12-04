@@ -86,13 +86,13 @@ systemPara['ls'] = args.ls
 if args.ts_per_rm>0:
     systemPara['ts_per_rm'] = args.ts_per_rm
 else:
-    systemPara['ts_per_rm'] = 9223372036854775807
+    systemPara['ts_per_rm'] = 9223372036854775800
 systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
 systemPara['fluid']['recRes'] = args.recRes
 
 if args.mesh_file[:2] == "__":
-    meshData['fluid']['mesh'], meshData['fluid']['bndExPts'] = mU.sampleMesh(systemPara, args.mesh_file[2:])
+    meshData['fluid']['mesh'], meshData['fluid']['bndExPts'], meshData['fluid']['boundIdx'] = mU.sampleMesh(systemPara, args.mesh_file[2:])
     mesh = meshData['fluid']['mesh']
 else:
     try:
@@ -109,6 +109,7 @@ else:
             mesh = None
             info("This mesh is not valid to read in.")
     meshData['fluid']['bndExPts'] = []
+    meshData['fluid']['boundIdx'] = []
 
     for i in range(args.level):
         mesh = refine(mesh)
@@ -168,7 +169,7 @@ for iterNo in range(systemPara['maxIter']):
         meshData['fluid']['dX'] = Measure("dx", domain=mesh, subdomain_data=subDomain_markers)
         meshData['fluid']['ds'] = Measure("ds", domain=mesh, subdomain_data=boundary_markers)
         try: 
-            meshData['fluid']['bndVIDs'] = mU.getSeedVerticesFromPts(meshData, 'fluid')
+            meshData['fluid']['bndVIDs'] = mU.getSeedVerticesFromPts(meshData, 'fluid') # just find one for each hole
         except:
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')

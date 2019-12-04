@@ -6,31 +6,34 @@ import os
 
 def sampleMesh(system, msh_name, res=100):
     ref_num_cells = system['fluid']['recRes']
-    bnd_pts = []
+    bnd_pts = [] # example boundary points
+    bounding_idx = [] # indices that those loops are bounding loop(s), not hole loops
     if msh_name == "FINS":
         domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+        bnd_pts.extend([0.,0.])
+        bounding_idx.append(0)
         for i in range(20):
             pos_x = .8*i + 8.
             pos_y = .8*((i+1)%2) + .25
             domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
-            bnd_pts.append(pos_x+.4)
-            bnd_pts.append(pos_y)
+            bnd_pts.extend([pos_x+.4,pos_y])
     elif msh_name == "CIRCLES":
         domain_r = Rectangle(Point(0.,0.), Point(28.,.8))
+        bnd_pts.extend([0.,0.])
+        bounding_idx.append(0)
         side = np.sqrt(np.pi*(.15**2))/2
         cy = .4
         for i in range(20):
             cx = .7*i + 28./4
             domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
-            bnd_pts.append(cx)
-            bnd_pts.append(cy+side/2)
+            bnd_pts.extend([cx,cy+size/2])
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None
     mesh = generate_mesh(domain_r, res)
     while mesh.num_cells() < ref_num_cells:
         mesh = refine(mesh)
-    return mesh, bnd_pts
+    return mesh, bnd_pts, bounding_idx
 
 def fluidBCs():
 
@@ -291,6 +294,7 @@ def createMeshViaTriangle(meshData, physics):
     #Optional following lines: <region #> <x> <y> <attribute> <maximum area>
     mesh = meshData[physics]['mesh']
     points = meshData[physics]['bndExPts']
+    bounding_idx = meshData[physics]['boundIdx']
     ref_num_cells = meshData[physics]['initNumCells']
 
     maxArea = 0
@@ -319,10 +323,10 @@ def createMeshViaTriangle(meshData, physics):
     for i in edges(boundary):
         meshfile.write('%d \t %d \t %d \n'%(i.index(),i.entities(0)[0],i.entities(0) [1]) )
 
-    num_holes = len(points)//2
+    num_loops = len(points)//2
     #Writing hole information, (cx, cy), for the PSLG f i l e
-    meshfile.write('%d \n'% num_holes)
-    for i in range(0,num_holes):
+    meshfile.write('%d \n'% (num_loops-len(bounding_idx)))
+    for i in range(0,num_loops):
         boundaryVertices = getBoundaryVerticesFromPoint(mesh, [points[2*i], points[2*i+1]])
         cordx = []
         cordy = []
@@ -338,7 +342,8 @@ def createMeshViaTriangle(meshData, physics):
         #print ("boundary points y: ", cordy) ## given bnd points info
         #print "len cordx", len(cordx), len(cordy)
         #print "len of boundary vertices", len(boundaryVertices), cx, cy
-        meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
+        if i not in bounding_idx: # only write hole loops; bounding box loop no need to write
+            meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
         bndLoopFile.write("];\n")
 
     bndLoopFile.write("}")
