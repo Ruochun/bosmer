@@ -303,8 +303,10 @@ def createMeshViaTriangle(meshData, physics):
         
     boundary = BoundaryMesh(mesh,"exterior")
     meshfile = open("obstaclemesh.poly", "w")
-    #Writing node information for the PSLG file
+    bndLoopFile = open("bndLoops.txt", "w")
     meshfile.write ( '%d \t 2 \t 0 \t 0 \n '%boundary.num_vertices())
+    bndLoopFile.write('{')
+
     coor = boundary.coordinates()
     mapping = boundary.entity_map(0).array()
     for i in vertices (boundary) :
@@ -324,9 +326,12 @@ def createMeshViaTriangle(meshData, physics):
         boundaryVertices = getBoundaryVerticesFromPoint(mesh, [points[2*i], points[2*i+1]])
         cordx = []
         cordy = []
-        for j in range(0,len(boundaryVertices)-1):
+        bndLoopFile.write('[')
+        for j in range(0,len(boundaryVertices)-1): # leaves the loop open by omitting the last entry
             cordx.append(coor[boundaryVertices[j]][0])
             cordy.append(coor[boundaryVertices[j]][1])
+            bndLoopFile.write('%g,'%(cordx[-1]))
+            bndLoopFile.write('%g,'%(cordy[-1]))
         cx = (np.amax(cordx)+np.amin(cordx))/2.
         cy = (np.amax(cordy)+np.amin(cordy))/2.
         #print ("boundary points x: ", cordx) ##
@@ -334,15 +339,18 @@ def createMeshViaTriangle(meshData, physics):
         #print "len cordx", len(cordx), len(cordy)
         #print "len of boundary vertices", len(boundaryVertices), cx, cy
         meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
+        bndLoopFile.write("];\n")
 
+    bndLoopFile.write("}")
+    bndLoopFile.close()
     meshfile.close ()
 
     maxAllowedIters = 10
     scale = 1.
     for k in range(maxAllowedIters):
-        maxArea = maxArea*scale
+        thisMaxArea = maxArea*scale
         triangle_syntax = './triangle'
-        triangle_syntax = triangle_syntax + ' -Qpqa'+str (maxArea) +' obstaclemesh'
+        triangle_syntax = triangle_syntax + ' -Qpqa'+str (thisMaxArea) +' obstaclemesh'
         # Q: quiet, q: quality, c: add segments on convex hull, a: max area
         # p: PSLG file
         print ("triangle_syntax", triangle_syntax)
@@ -353,7 +361,7 @@ def createMeshViaTriangle(meshData, physics):
         mesh = Mesh("shape.xml")
         
         print ('new mesh: num cells/elements ', mesh.num_cells(),  'num verticies ', mesh.num_vertices())
-        if mesh.num_cells() > .95*ref_num_cells:
+        if mesh.num_cells() > int(.95*ref_num_cells):
             return mesh
         else:
             scale *= .9
