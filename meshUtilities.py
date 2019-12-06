@@ -7,7 +7,7 @@ import os
 def sampleMesh(system, msh_name, res=100):
     ref_num_cells = system['fluid']['recRes']
     bnd_pts = [] # example boundary points
-    bounding_idx = [] # indices that those loops are bounding loop(s), not hole loops
+    bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
     if msh_name == "FINS":
         domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
         bnd_pts.extend([0.,0.])
@@ -332,6 +332,7 @@ def createMeshViaTriangle(meshData, physics):
         meshfile.write('%d \t %d \t %d \n'%(i.index(),i.entities(0)[0],i.entities(0) [1]) )
 
     num_loops = len(points)//2
+    num_holes = 0
     #Writing hole information, (cx, cy), for the PSLG f i l e
     meshfile.write('%d \n'% (num_loops-len(bounding_idx)))
     for i in range(0,num_loops):
@@ -351,7 +352,8 @@ def createMeshViaTriangle(meshData, physics):
         #print "len cordx", len(cordx), len(cordy)
         #print "len of boundary vertices", len(boundaryVertices), cx, cy
         if i not in bounding_idx: # only write hole loops; bounding box loop no need to write
-            meshfile.write('%d \t %g \t %g\n'%(i+1, cx, cy))
+            num_holes += 1
+            meshfile.write('%d \t %g \t %g\n'%(num_holes, cx, cy))
         bndLoopFile.write("];\n")
 
     bndLoopFile.write("}")
