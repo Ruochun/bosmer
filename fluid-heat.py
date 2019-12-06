@@ -70,6 +70,7 @@ physicalPara['fluid'] = {}
 systemPara['fluid'] = {}
 outputData['objHeat'] = []
 outputData['objDissp'] = [] 
+outputData['objVol'] = []
 # we don't currently have a solid system
 
 
@@ -116,12 +117,13 @@ else:
 
 assert mesh is not None
 
-print("FLuid mesh has volume: ", assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere")))
+meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
+print("Fluid mesh has volume: ", meshData['fluid']['initVol'])
 
 if args.volCons[-1] == "*":
-    meshData['fluid']['initVol'] = float(args.volCons[:-1])*assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
+    meshData['fluid']['volCons'] = float(args.volCons[:-1])*meshData['fluid']['initVol']
 else:
-    meshData['fluid']['initVol'] = float(args.volCons)
+    meshData['fluid']['volCons'] = float(args.volCons)
 meshData['fluid']['initNumCells'] = mesh.num_cells()
 meshData['fluid']['hmax'] = mesh.hmax()
 meshData['fluid']['hmin'] = mesh.hmin()
@@ -241,9 +243,10 @@ for iterNo in range(systemPara['maxIter']):
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
 
-    (objHeat, objDissp) = sS.computeObj(meshData, physicalPara, funcVar)
+    (objHeat, objDissp, objVol) = sS.computeObj(meshData, physicalPara, funcVar)
     outputData['objHeat'].append(objHeat)
     outputData['objDissp'].append(objDissp)
+    outputData['objVol'].append(objVol)
 
     if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
@@ -290,6 +293,8 @@ print("-----------------------------------------------------------------")
 print("objHeat: ", outputData['objHeat'])
 print("    ")
 print("objDissp: ", outputData['objDissp']) 
+print("    ")
+print("objVol: ", outputData['objVol'])
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)
 

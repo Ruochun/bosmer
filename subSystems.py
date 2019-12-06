@@ -20,7 +20,8 @@ def computeObj(meshData, para, Var):
     (u, _) = split(Var['fluid']['up'])
     M1 = para['objWeight']*(-T)*dX(90) # heat obj
     M2 = inner(grad(u), grad(u))*dx # dissp obj
-    return assemble(M1), assemble(M2)
+    M3 = Constant(1.)*dx # volume obj
+    return assemble(M1), assemble(M2), assemble(M3)-meshData['fluid']['volCons']
 
 def formProblemNS(meshData, BCs, para, Var, system):
     W = meshData['fluid']['spaceNS']
@@ -162,7 +163,7 @@ def formProblemShapeGradient(meshData, BCs, para, Var, system):
     Pe = para['fluid']['Pe']
     (w, p) = TrialFunctions(meshData['fluid']['spaceSG'])
     (v, q) = TestFunctions(meshData['fluid']['spaceSG'])
-    g = assemble(Constant(1.0)*dx) - meshData['fluid']['initVol']
+    g = assemble(Constant(1.0)*dx) - meshData['fluid']['volCons']
     
     a = (inner(grad(w) , grad(v))+inner(w,v))*dx+p*inner(v,n)*ds(0)+q*inner(w,n)* ds(0)
     L = (-2.*nu*inner(epsilon(u), epsilon(u_prime))
