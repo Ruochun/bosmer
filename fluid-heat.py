@@ -176,7 +176,7 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.6)
+        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=0.8)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)

@@ -200,11 +200,11 @@ def formSolverNS(problem, system):
         solver = rmtursNewtonSolver(linear_solver)
         solver.parameters["relative_tolerance"] = 1e-4
         solver.parameters["error_on_nonconvergence"] = False
-        solver.parameters["maximum_iterations"] = 5
+        solver.parameters["maximum_iterations"] = 7
     elif system['ns'] == "variational":
         solver = NonlinearVariationalSolver(problem)
         solver.parameters['newton_solver']['relative_tolerance'] = 1E-4
-        solver.parameters['newton_solver']['maximum_iterations'] = 5
+        solver.parameters['newton_solver']['maximum_iterations'] = 7
         if system['ls'] == "iterative":
             solver.parameters['newton_solver']['linear_solver'] = 'gmres'
             solver.parameters['newton_solver']['preconditioner'] = 'default'
