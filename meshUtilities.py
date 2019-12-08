@@ -9,7 +9,13 @@ def sampleMesh(system, msh_name, res=100):
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
     if msh_name == "FINS":
-        domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+        #domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
+        box = [Point(0.,0.)]
+        gU.explicitAppendSide(box, (0.,0.), (1.,0.), 32., res)
+        box.append(Point(32.,1.6))
+        gU.explicitAppendSide(box, (32.,1.6), (-1.,0.), 32., res)
+        box.append(Point(0.,0.))
+        domain_r = Polygon(box)
         bnd_pts.extend([0.,0.])
         bounding_idx.append(0)
         for i in range(20):
@@ -57,7 +63,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>25.) 
+            return not(on_boundary) and (x[0]>28.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -73,10 +79,10 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>28.-eps
+            return on_boundary and x[0]>32.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>.8-eps)
+            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)
@@ -96,7 +102,7 @@ def applyNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1, bc90] # slip not added
+    return [bc0, bc1] # slip not added
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -107,7 +113,7 @@ def applyAdjNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1, bc90] # slip not added
+    return [bc0, bc1] # slip not added
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
@@ -128,7 +134,7 @@ def applyShapeGradientBCs(meshData, markers):
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc2 = DirichletBC(W.sub(0), noslip, markers, 2)
     bc90 = DirichletBC(W.sub(0), noslip, markers, 90)
-    return [bc1, bc2, bc90]
+    return [bc1, bc2, bc90] 
 
 def applyLinearElasticityBCs(meshData, markers, Var, para):
     alpha = para['stepLen']
@@ -142,7 +148,7 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
     bc1 = DirichletBC(W, noslip, markers, 1)
     bc2 = DirichletBC(W, noslip, markers, 2)    
     bc90 = DirichletBC(W, noslip, markers, 90)
-    return [bc0, bc1, bc2, bc90]
+    return [bc0, bc1, bc2, bc90] 
 
 
 ### remeshing utilities
@@ -320,7 +326,7 @@ def createMeshViaTriangle(meshData, physics):
     bndLoopFile.write('{')
 
     coor = boundary.coordinates()
-    mapping = boundary.entity_map(0).array()
+    #mapping = boundary.entity_map(0).array()
     for i in vertices (boundary) :
         meshfile.write('%d \t %g \t %g \n'%(i.index(), coor[i.index()][0],
                                             coor[i. index() ][1]) )

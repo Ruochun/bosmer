@@ -176,7 +176,7 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        pbc = None#gU.yPeriodic(mapFrom=0.0, mapTo=1.6)
+        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.6)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
@@ -290,11 +290,11 @@ print("\nSummary of iteration counts:")
 print(tab)
 
 print("-----------------------------------------------------------------")
-print("objHeat: ", outputData['objHeat'])
+print("objHeat= ", outputData['objHeat'])
 print("    ")
-print("objDissp: ", outputData['objDissp']) 
+print("objDissp= ", outputData['objDissp']) 
 print("    ")
-print("objVol: ", outputData['objVol'])
+print("objVol= ", outputData['objVol'])
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)
 
