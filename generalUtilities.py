@@ -18,7 +18,7 @@ def explicitAppendSide(loop, start, dirVec, L, res):
     y = start[1]
     x_incre = dirVec[0]*L/res
     y_incre = dirVec[1]*L/res
-    for i in range(1,res+1):
+    for i in range(0,res+1):
         loop.append(Point(x+i*x_incre, y+i*y_incre))
     return 0
 
