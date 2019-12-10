@@ -41,6 +41,8 @@ parser.add_argument("--sl", "-s", type=float, dest="step_length", default=.005,
                     help="optimization step length multiplier")
 parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", default=-1,
                     help="instruct the code to generate mesh that has at least this many elements")
+parser.add_argument("--immediate_remesh", dest="immediate_remesh", action='store_true',
+                    help="instruct the code to remesh before starting the first iteration using the integrated remeshing algorithm")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
                     help="volume constraint, supply a number, or a number and a '\*'\ in the end allowing the initial domain to expand that many times larger (or smaller)")
 args = parser.parse_args(sys.argv[1:])
@@ -125,8 +127,6 @@ if args.volCons[-1] == "*":
 else:
     meshData['fluid']['volCons'] = float(args.volCons)
 meshData['fluid']['initNumCells'] = mesh.num_cells()
-meshData['fluid']['hmax'] = mesh.hmax()
-meshData['fluid']['hmin'] = mesh.hmin()
 
 flow_direction = Constant((1.0,0.0))
 justRemeshed = True
@@ -143,7 +143,10 @@ adj_tFile = File(args.out_folder+"/adj_temperature.pvd")
 vFile = File(args.out_folder+"/shape_gradient.pvd")
 
 #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
-
+if args.immediate_remesh:
+    meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid', systemPara)
+    mesh = meshData['fluid']['mesh']
+    assert mesh is not None
 ##################################
 ####         MAIN PART        ####
 ##################################
@@ -167,6 +170,8 @@ for iterNo in range(systemPara['maxIter']):
         boundary_markers = meshData['fluid']['boundary']
         meshData['fluid']['n'] = FacetNormal(mesh)
         meshData['fluid']['h'] = CellDiameter(mesh)
+        meshData['fluid']['hmax'] = mesh.hmax()
+        meshData['fluid']['hmin'] = mesh.hmin()
         meshData['fluid']['dx'] = Measure("dx", domain=mesh, subdomain_id="everywhere")
         meshData['fluid']['dX'] = Measure("dx", domain=mesh, subdomain_data=subDomain_markers)
         meshData['fluid']['ds'] = Measure("ds", domain=mesh, subdomain_data=boundary_markers)
@@ -268,11 +273,9 @@ for iterNo in range(systemPara['maxIter']):
 
     if (iterNo+1) % systemPara['ts_per_rm']==0:
         meshData['fluid']['bndExPts'] = mU.getSeedPtsFromVertices(meshData, 'fluid')
-        meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid') 
+        meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid', systemPara) 
         mesh = meshData['fluid']['mesh']
         assert mesh is not None
-        meshData['fluid']['hmax'] = mesh.hmax()     
-        meshData['fluid']['hmin'] = mesh.hmin()
         justRemeshed = True
 
 # Report timings

@@ -23,6 +23,7 @@ def sampleMesh(system, msh_name, res=100):
             domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
             bnd_pts.extend([pos_x+.4,pos_y])
     elif msh_name == "CIRCLES":
+        radii = .15
         #domain_r = Rectangle(Point(0.,0.), Point(28.,.8))
         box = []
         gU.explicitAppendSide(box, (0.,0.), (1.,0.), 28., res)
@@ -36,8 +37,8 @@ def sampleMesh(system, msh_name, res=100):
         for i in range(20):
             cx = .7*i + 28./4
             #domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
-            domain_r = domain_r - Circle(Point(cx, cy), .15, 16)
-            bnd_pts.extend([cx,cy+.15])
+            domain_r = domain_r - Circle(Point(cx, cy), radii, 16)
+            bnd_pts.extend([cx,cy+radii])
     elif msh_name == "3_FINS":
         domain_r = Rectangle(Point(0.,0.), Point(5.,1.))
         bnd_pts.extend([0.,0.])
@@ -290,7 +291,7 @@ def getBoundaryVerticesFromPoint(mesh, pnt):
             break
 
 
-def createMeshViaTriangle(meshData, physics):
+def createMeshViaTriangle(meshData, physics, system):
     # number of elements and vertices may change after each re-meshing.
     # boundary_parts is re-computed after re-meshing.
     # write down boundary points, vertex ID, edge ID.
@@ -314,7 +315,8 @@ def createMeshViaTriangle(meshData, physics):
     mesh = meshData[physics]['mesh']
     points = meshData[physics]['bndExPts']
     bounding_idx = meshData[physics]['boundIdx']
-    ref_num_cells = meshData[physics]['initNumCells']
+    #ref_num_cells = meshData[physics]['initNumCells']
+    ref_num_cells = system['fluid']['recRes']
 
     maxArea = 0
     minArea = 1000
@@ -387,10 +389,10 @@ def createMeshViaTriangle(meshData, physics):
         mesh = Mesh("shape.xml")
         
         print ('new mesh: num cells/elements ', mesh.num_cells(),  'num verticies ', mesh.num_vertices())
-        if mesh.num_cells() > int(.95*ref_num_cells):
+        if mesh.num_cells() > int(1.*ref_num_cells):
             return mesh
         else:
-            scale *= .9
+            scale *= .85
     info("!!!!! Maximum meshing iterations reached and still not having a sufficiently refined mesh, stopping !!!!!")
     return None
 
