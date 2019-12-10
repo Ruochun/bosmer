@@ -181,7 +181,7 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=1.6)
+        pbc = gU.yPeriodic(mapFrom=0.0, mapTo=0.8)
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
@@ -229,6 +229,8 @@ for iterNo in range(systemPara['maxIter']):
         info('****************************************')
     ########### End of mesh setup and problem definition ###############
 
+    if (iterNo+1) % systemPara['ts_per_out']==0:
+        meshFile << (mesh, iterNo)
     ########### Begining solving systems ###############################
     info('------------------------------')
     info("Begining to solve systems...")
@@ -263,7 +265,6 @@ for iterNo in range(systemPara['maxIter']):
         tFile << (funcVar['fluid']['T'], iterNo)
         adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
         vFile << (funcVar['fluid']['v'], iterNo)
-        meshFile << (mesh, iterNo)
 
     # now move the mesh and remesh (if needed)
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))

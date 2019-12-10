@@ -9,7 +9,6 @@ def sampleMesh(system, msh_name, res=100):
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
     if msh_name == "FINS":
-        #domain_r = Rectangle(Point(0.,0.), Point(32.,1.6))
         box = []
         gU.explicitAppendSide(box, (0.,0.), (1.,0.), 32., res)
         gU.explicitAppendSide(box, (32.,1.6), (-1.,0.), 32., res)
@@ -24,7 +23,6 @@ def sampleMesh(system, msh_name, res=100):
             bnd_pts.extend([pos_x+.4,pos_y])
     elif msh_name == "CIRCLES":
         radii = .15
-        #domain_r = Rectangle(Point(0.,0.), Point(28.,.8))
         box = []
         gU.explicitAppendSide(box, (0.,0.), (1.,0.), 28., res)
         gU.explicitAppendSide(box, (28.,.8), (-1.,0.), 28., res)
@@ -32,13 +30,25 @@ def sampleMesh(system, msh_name, res=100):
         domain_r = Polygon(box)
         bnd_pts.extend([0.,0.])
         bounding_idx.append(0)
-        #side = np.sqrt(np.pi*(.15**2))/2
         cy = .4
         for i in range(20):
             cx = .7*i + 28./4
-            #domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
             domain_r = domain_r - Circle(Point(cx, cy), radii, 16)
             bnd_pts.extend([cx,cy+radii])
+    elif msh_name == "SQUARES":
+        box = []
+        gU.explicitAppendSide(box, (0.,0.), (1.,0.), 28., res)
+        gU.explicitAppendSide(box, (28.,.8), (-1.,0.), 28., res)
+        box.append(Point(0.,0.))
+        domain_r = Polygon(box)
+        bnd_pts.extend([0.,0.])
+        bounding_idx.append(0)
+        side = np.sqrt(np.pi*(.15**2))/2
+        cy = .4
+        for i in range(20):
+            cx = .7*i + 28./4
+            domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
+            bnd_pts.extend([cx,cy+side/2])
     elif msh_name == "3_FINS":
         domain_r = Rectangle(Point(0.,0.), Point(5.,1.))
         bnd_pts.extend([0.,0.])
@@ -69,7 +79,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>29.) 
+            return not(on_boundary) and (x[0]>25.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -85,10 +95,10 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>32.-eps
+            return on_boundary and x[0]>28.-eps
     class slipWall(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>1.6-eps)
+            return on_boundary and (x[1]<eps or x[1]>0.8-eps)
 
     solidWall().mark(boundary, 0)
     inflow().mark(boundary, 1)
