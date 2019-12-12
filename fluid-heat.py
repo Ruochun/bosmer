@@ -41,7 +41,7 @@ parser.add_argument("--sl", "-s", type=float, dest="step_length", default=.005,
                     help="optimization step length multiplier")
 parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", default=-1,
                     help="instruct the code to generate mesh that has at least this many elements")
-parser.add_argument("--immediate_remesh", dest="immediate_remesh", action='store_true',
+parser.add_argument("--immediate_rm", dest="immediate_remesh", action='store_true',
                     help="instruct the code to remesh before starting the first iteration using the integrated remeshing algorithm")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
                     help="volume constraint, supply a number, or a number and a '\*'\ in the end allowing the initial domain to expand that many times larger (or smaller)")
@@ -61,7 +61,7 @@ meshData = {} # mesh and related info
 BCs = {} # BC sets
 funcVar = {} # state and adjoint variables
 physicalPara = {} # physical parameters of this problem
-systemPara = {} # system parameters
+systemPara = {} # system/solver parameters
 outputData = {} # outputs for postprocessing
 
 # we have a fluid system

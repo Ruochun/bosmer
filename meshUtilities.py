@@ -59,9 +59,9 @@ def sampleMesh(system, msh_name, res=100):
         bnd_pts.extend([1.,4./6.,2.,1./6.,3.,4./6.])
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
-        return None
+        return None, None, None
     mesh = generate_mesh(domain_r, res)
-    while mesh.num_cells() < ref_num_cells:
+    while mesh.num_cells() < ref_num_cells: #FIXME: maybe shouldn't use FEniCS-refine on the initial mesh
         mesh = refine(mesh)
     return mesh, bnd_pts, bounding_idx
 
@@ -383,7 +383,7 @@ def createMeshViaTriangle(meshData, physics, system):
     bndLoopFile.close()
     meshfile.close ()
 
-    maxAllowedIters = 10
+    maxAllowedIters = 20
     scale = 1.
     for k in range(maxAllowedIters):
         thisMaxArea = maxArea*scale
