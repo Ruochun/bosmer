@@ -7,7 +7,7 @@ G = {}; D = {}; P = {};
 nam = 'LinIGES_Output';
        
 %**************************information*********************************
-SLine = 'Matlab Nurbs converted -> IGES file.    				 ';
+SLine = 'Matlab Line Segments -> IGES file.';
 %GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 G{1,1} = ',';      % Parameter Deliminator Character
 G{2,1} = ';';      % Record Delimiter Character
@@ -93,7 +93,7 @@ fid=fopen(filnam, 'w');
 % fprintf(fid,
 % '*********|*********|*********|*********|*********|*********|*********|*********|\n');  80 Characters for measurment
 Sln =1;
-fprintf(fid, '%s                S%07.f\n', SLine, Sln);
+fprintf(fid, '%s                                      S%07.f\n', SLine, Sln);
 
 %---------------G Line information  (Header infomation)--------------------
 Gln=1;
