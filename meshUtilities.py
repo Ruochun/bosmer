@@ -57,6 +57,12 @@ def sampleMesh(system, msh_name, res=100):
                              - Rectangle(Point(2.,1./6.), Point(3.,2./6.))
                              - Rectangle(Point(3.,4./6.), Point(4.,5./6.)))
         bnd_pts.extend([1.,4./6.,2.,1./6.,3.,4./6.])
+    elif msh_name == "cyl":
+        radii = .25
+        domain_r = Box(Point(0.,0.,0.), Point(5.,1.,1.))
+        domain_r = (domain_r - Cylinder(Point(1.5,.5,1.), Point(1.,.5,0.), radii, radii, res)
+                             - Cylinder(Point(2.5,.5,1.), Point(2.,.5,0.), radii, radii, res)
+                             - Cylinder(Point(3.5,.5,1.), Point(3.,.5,0.), radii, radii, res))
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -79,7 +85,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>25.) 
+            return not(on_boundary) and (x[0]>4.7) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -95,15 +101,19 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>28.-eps
-    class slipWall(SubDomain):
+            return on_boundary and x[0]>5.-eps
+    class slipWally(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>0.8-eps)
+            return on_boundary and (x[1]<eps or x[1]>1.-eps)
+    class slipWallz(SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and (x[2]<eps or x[2]>1.-eps)
 
     solidWall().mark(boundary, 0)
+    slipWally().mark(boundary, 90)
+    slipWallz().mark(boundary, 91)
     inflow().mark(boundary, 1)
     outflow().mark(boundary, 2)
-    slipWall().mark(boundary, 90)
     return boundary    
 
 def applyNSBCs(meshData, markers):
@@ -118,7 +128,8 @@ def applyNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1] # slip not added
+    bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
+    return [bc0, bc1, bc90, bc91]
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -129,7 +140,8 @@ def applyAdjNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    return [bc0, bc1] # slip not added
+    bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
+    return [bc0, bc1, bc90, bc91]
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
@@ -150,7 +162,8 @@ def applyShapeGradientBCs(meshData, markers):
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc2 = DirichletBC(W.sub(0), noslip, markers, 2)
     bc90 = DirichletBC(W.sub(0), noslip, markers, 90)
-    return [bc1, bc2, bc90] 
+    bc91 = DirichletBC(W.sub(0), noslip, markers, 91)
+    return [bc1, bc2, bc90, bc91] 
 
 def applyLinearElasticityBCs(meshData, markers, Var, para):
     alpha = para['stepLen']
@@ -164,7 +177,8 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
     bc1 = DirichletBC(W, noslip, markers, 1)
     bc2 = DirichletBC(W, noslip, markers, 2)    
     bc90 = DirichletBC(W, noslip, markers, 90)
-    return [bc0, bc1, bc2, bc90] 
+    bc91 = DirichletBC(W, noslip, markers, 91)
+    return [bc0, bc1, bc2, bc90, bc91] 
 
 
 ### remeshing utilities

@@ -69,9 +69,9 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
 
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
-            - div(v)*p 
+            + div(v)*p 
             + dot(dot(v, nabla_grad(u_)), u) + dot(dot(u_, nabla_grad(v)), u)
-            + q*div(u) + dot(grad(T_), v)*T_prime
+            - q*div(u) + dot(grad(T_), v)*T_prime
             - 2.*inner(grad(u_), grad(v))
         )*dx
     if system['ns'] == "rmturs":
