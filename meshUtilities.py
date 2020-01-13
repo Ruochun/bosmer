@@ -4,7 +4,7 @@ from mshr import *
 import numpy as np
 import os
 
-def sampleMesh(system, msh_name, res=100):
+def sampleMesh(system, msh_name, res=50):
     ref_num_cells = system['fluid']['recRes']
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
@@ -63,6 +63,13 @@ def sampleMesh(system, msh_name, res=100):
         domain_r = (domain_r - Cylinder(Point(1.5,.5,1.), Point(1.,.5,0.), radii, radii, res)
                              - Cylinder(Point(2.5,.5,1.), Point(2.,.5,0.), radii, radii, res)
                              - Cylinder(Point(3.5,.5,1.), Point(3.,.5,0.), radii, radii, res))
+    elif msh_name == "3D_3cyl":
+        scale = 10.
+        radii = scale*.025
+        domain_r = Box(Point(0.,0.,0.), Point(scale*1.,scale*.1,scale*.2))
+        domain_r = (domain_r - Cylinder(Point(scale*.35,scale*.05,scale*.1), Point(scale*.35,scale*.05,scale*0.), radii, radii, res)
+                             - Cylinder(Point(scale*.5,scale*.05,scale*.1), Point(scale*.5,scale*.05,scale*0.), radii, radii, res)
+                             - Cylinder(Point(scale*.65,scale*.05,scale*.1), Point(scale*.65,scale*.05,scale*0.), radii, radii, res))
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -85,7 +92,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>4.7) 
+            return not(on_boundary) and (x[0]>9.4) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -101,13 +108,13 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>5.-eps
+            return on_boundary and x[0]>10.-eps
     class slipWally(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and (x[1]<eps or x[1]>1.-eps)
     class slipWallz(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[2]<eps or x[2]>1.-eps)
+            return on_boundary and x[2]>2.-eps
 
     solidWall().mark(boundary, 0)
     slipWally().mark(boundary, 90)

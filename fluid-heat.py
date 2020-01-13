@@ -182,11 +182,10 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         pbc = None#gU.yPeriodic(mapFrom=0.0, mapTo=0.8)
-        Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
         Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
-        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec1, Sca1]), constrained_domain=pbc)
         meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
         meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
         meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1) # LE=LinearElasticity, used for mesh moving
@@ -239,6 +238,15 @@ for iterNo in range(systemPara['maxIter']):
     if systemPara['ns'] == "rmturs":
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
+        #solverThermal.solve(problemThermal, funcVar['fluid']['T'].vector())
+        solverThermal.solve()
+        solverThermal.solve() 
+        solverAdjThermal.solve()
+        solverAdjNS.solve()
+        solverSG.solve()
+        #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
+        #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
+        #solverSG.solve(problemSG, funcVar['fluid']['v'].vector())
     elif systemPara['ns'] == "variational":
         with Timer("SolveSystems") as t_solve:
             solverNS.solve()
@@ -264,7 +272,7 @@ for iterNo in range(systemPara['maxIter']):
         adj_pFile << (adj_p_out, iterNo)
         tFile << (funcVar['fluid']['T'], iterNo)
         adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
-        vFile << (funcVar['fluid']['v'], iterNo)
+        #vFile << (funcVar['fluid']['v'], iterNo)
 
     # now move the mesh and remesh (if needed)
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
