@@ -212,16 +212,18 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNS(problemNS, systemPara)
-        solverAdjNS = sS.formSolverThermal(problemAdjNS, systemPara) # Adj NS former is the same as the state NS former
+        solverAdjNS = sS.formSolverThermal(problemAdjNS, systemPara) # Linear solver formers can perhaps be the same
         solverThermal = sS.formSolverThermal(problemThermal, systemPara)
         solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
 
         # now form the problem solving for the shape gradient
         problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
-        solverSG = sS.formSolverShapeGradient(problemSG, systemPara)   
+        #solverSG = sS.formSolverShapeGradient(problemSG, systemPara)   
+        solverSG = sS.formSolverThermal(problemSG, systemPara)
         # now form the problem using linear elasiticity to move the mesh
         problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
-        solverLE = sS.formSolverShapeGradient(problemLE, systemPara) # SG and LE are both simple linear problems, can use the same former 
+        #solverLE = sS.formSolverShapeGradient(problemLE, systemPara) 
+        solverLE = sS.formSolverThermal(problemLE, systemPara) # SG and LE are both simple linear problems, can use the same former 
 
         info('****************************************')
         info('Problems and solvers sucessfully formed!')
@@ -236,13 +238,17 @@ for iterNo in range(systemPara['maxIter']):
     info('------------------------------')
 
     if systemPara['ns'] == "rmturs":
+        info('===== Navier--Stokes system =====')
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
         #solverThermal.solve(problemThermal, funcVar['fluid']['T'].vector())
+        info('===== Thermal system =====')
         solverThermal.solve()
-        solverThermal.solve() 
-        solverAdjThermal.solve()
+        info('===== Adjoint thermal system =====')
+        solverAdjThermal.solve() 
+        info('===== Adjoint Navier--Stokes system =====')
         solverAdjNS.solve()
+        info('===== Shape gradient system =====') 
         solverSG.solve()
         #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
         #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
@@ -277,6 +283,7 @@ for iterNo in range(systemPara['maxIter']):
     # now move the mesh and remesh (if needed)
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
     funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
+    info("===== Mesh movement ======")
     solverLE.solve()
     ALE.move(mesh, funcVar['fluid']['w'])
 

@@ -69,6 +69,15 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
     T_ = Var['fluid']['T']
     T_prime = Var['fluid']['T_prime']
 
+    h_ugn = meshData['fluid']['hmax']
+    h_rgn = meshData['fluid']['hmin']
+    tau_sugn3 = h_rgn**2/(4.0*nu)
+    tau_supg = 1.0/sqrt(4.0/h_ugn**2 + 1.0/tau_sugn3**2)
+    tau_pspg = tau_supg
+    momEqn1 = - div(nu*grad(v)) + grad(v)*u_ + grad(q)
+    momEqn2 = - div(nu*grad(u_)) + grad(u_)*u_ + grad(p_)
+    F_stab = (tau_supg*inner(grad(u)*u_, momEqn1) + tau_supg*inner(grad(u)*v, momEqn2) + tau_pspg*inner(grad(p), momEqn1))*dx
+    #F_stab = (tau_supg*inner(grad(v)*u_, momEqn2) + tau_pspg*inner(grad(q), momEqn2))*dx
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
             + div(v)*p 
@@ -76,6 +85,8 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
             - q*div(u) + dot(grad(T_), v)*T_prime
             - 2.*inner(grad(u_), grad(v))
         )*dx
+    F = F + F_stab
+
     if solver_type == "rmturs":
         J = derivative(F, w)
         assem = rmtursAssembler(J, F, BCs['fluid']['adjNS'])
@@ -96,19 +107,29 @@ def formProblemThermal(meshData, BCs, para, Var, system):
         T = TrialFunction(Q)
         
     #dT = TrialFunction(Q)
-    dx = meshData['fluid']['dx']
-    Pe = para['fluid']['Pe']
+    dx = meshData['fluid']['dx']     
+    Pe = para['fluid']['Pe'] 
+    nu = para['fluid']['nu'] 
     T_hat = para['fluid']['T_hat']
-    h_hat = para['fluid']['h_hat']
+    h_hat = para['fluid']['h_hat']     
     (u_, p_) = split(Var['fluid']['up'])
     ds = meshData['fluid']['ds']
+
+    h_ugn = meshData['fluid']['hmax']
+    h_rgn = meshData['fluid']['hmin']
+    #tau_sugn3 = h_rgn**2/(4.0*nu)
+    tau_supg = 1.0/sqrt(4.0/h_ugn**2)
+    #tau_pspg = tau_supg
+    momEqn = -1.0/Pe*div(grad(T)) + dot(u_, grad(T))
+    F_stab = (tau_supg*dot(grad(S), u_)*momEqn)*dx
     F = (
             (1./Pe)*dot(grad(T), grad(S))
             + dot(grad(T), u_)*S
         )*dx + (
             T*S*h_hat - S*h_hat*T_hat
         )*ds(0)
-    
+    F = F + F_stab
+
     if solver_type == "rmturs":
         J = derivative(F, T)
         assem = rmtursAssembler(J, F, BCs['fluid']['thermal'])
@@ -137,6 +158,11 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
     h_hat = para['fluid']['h_hat']
     (u_, p_) = split(Var['fluid']['up'])
 
+    h_ugn = meshData['fluid']['hmax']
+    h_rgn = meshData['fluid']['hmin']
+    tau_supg = 1.0/sqrt(4.0/h_ugn**2)
+    momEqn = -1.0/Pe*div(grad(T)) + dot(u_, grad(T))
+    F_stab = (tau_supg*dot(grad(S), u_)*momEqn)*dx
     F = (
             (1./Pe)*dot(grad(S), grad(T))
             + dot(grad(S), u_)*T
@@ -145,6 +171,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         )*ds(0) + (
             para['objWeight']*S
         )*dX(90)
+    F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, T)
@@ -237,8 +264,9 @@ def formSolverThermal(problem, system):
         solver.parameters["linear_solver"] = 'gmres'
         solver.parameters["krylov_solver"]["relative_tolerance"] = 1e-6
         solver.parameters["krylov_solver"]["monitor_convergence"] = True
-        solver.parameters["krylov_solver"]["maximum_iterations"] = 200
+        solver.parameters["krylov_solver"]["maximum_iterations"] = 400
         solver.parameters["krylov_solver"]["report"] = True
+        solver.parameters["krylov_solver"]["error_on_nonconvergence"] = False
         #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
