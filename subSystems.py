@@ -161,8 +161,10 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
     h_ugn = meshData['fluid']['hmax']
     h_rgn = meshData['fluid']['hmin']
     tau_supg = 1.0/sqrt(4.0/h_ugn**2)
-    momEqn = -1.0/Pe*div(grad(T)) + dot(u_, grad(T))
-    F_stab = (tau_supg*dot(grad(S), u_)*momEqn)*dx
+    #momEqn = -1.0/Pe*div(grad(T)) + dot(u_, grad(T))
+    #F_stab = (tau_supg*dot(grad(S), u_)*momEqn)*dx
+    momEqn = -1.0/Pe*div(grad(S)) + dot(u_, grad(S))
+    F_stab = tau_supg*dot(grad(T), u_)*momEqn*dx
     F = (
             (1./Pe)*dot(grad(S), grad(T))
             + dot(grad(S), u_)*T
@@ -264,7 +266,7 @@ def formSolverThermal(problem, system):
         solver.parameters["linear_solver"] = 'gmres'
         solver.parameters["krylov_solver"]["relative_tolerance"] = 1e-6
         solver.parameters["krylov_solver"]["monitor_convergence"] = True
-        solver.parameters["krylov_solver"]["maximum_iterations"] = 400
+        solver.parameters["krylov_solver"]["maximum_iterations"] = 1000
         solver.parameters["krylov_solver"]["report"] = True
         solver.parameters["krylov_solver"]["error_on_nonconvergence"] = False
         #for item in solver.parameters["krylov_solver"].items(): print(item)
