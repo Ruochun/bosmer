@@ -44,7 +44,7 @@ parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", def
 parser.add_argument("--immediate_rm", dest="immediate_remesh", action='store_true',
                     help="instruct the code to remesh before starting the first iteration using the integrated remeshing algorithm")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
-                    help="volume constraint, supply a number, or a number and a '\*'\ in the end allowing the initial domain to expand that many times larger (or smaller)")
+                    help="volume constraint, supply a number, or a number and a \'*\' in the end allowing the initial domain to expand that many times larger (or smaller)")
 args = parser.parse_args(sys.argv[1:])
 
 parameters["form_compiler"]["quadrature_degree"] = 3

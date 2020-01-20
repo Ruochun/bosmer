@@ -42,6 +42,7 @@ def formProblemNS(meshData, BCs, para, Var, system):
     F_stab = (tau_supg*inner(grad(v)*u, momEqn) + tau_pspg*inner(grad(q), momEqn))*dx
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
+            #2.*nu*inner(grad(u), grad(v))
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
     F = F + F_stab
@@ -74,12 +75,13 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
     tau_sugn3 = h_rgn**2/(4.0*nu)
     tau_supg = 1.0/sqrt(4.0/h_ugn**2 + 1.0/tau_sugn3**2)
     tau_pspg = tau_supg
-    momEqn1 = - div(nu*grad(v)) + grad(v)*u_ + grad(q)
+    momEqn1 = - div(nu*grad(v)) + grad(v)*u_ + grad(u_)*v + grad(q)
     momEqn2 = - div(nu*grad(u_)) + grad(u_)*u_ + grad(p_)
     F_stab = (tau_supg*inner(grad(u)*u_, momEqn1) + tau_supg*inner(grad(u)*v, momEqn2) + tau_pspg*inner(grad(p), momEqn1))*dx
     #F_stab = (tau_supg*inner(grad(v)*u_, momEqn2) + tau_pspg*inner(grad(q), momEqn2))*dx
     F = (
             2.*nu*inner(epsilon(u), epsilon(v))
+            #2.*nu*inner(grad(u), grad(v))
             + div(v)*p 
             + dot(dot(v, nabla_grad(u_)), u) + dot(dot(u_, nabla_grad(v)), u)
             - q*div(u) + dot(grad(T_), v)*T_prime
