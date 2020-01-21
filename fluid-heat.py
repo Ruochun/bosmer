@@ -6,6 +6,7 @@ import numpy as np
 import meshUtilities as mU
 import generalUtilities as gU
 import subSystems as sS
+import configurations as conf
 
 from mpi4py import MPI as pmp
 import argparse, sys, os, gc
@@ -16,7 +17,7 @@ commmpi = pmp.COMM_WORLD
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=
                                  argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--ns", type=str, dest="ns", default="variational",
-                    choices=["variational", "rmturs"],help="non-linear solver, rmturs or FEniCS variational solver")
+                    choices=["variational", "rmturs"],help="Navier--Stokes non-linear solver, rmturs or FEniCS variational solver")
 parser.add_argument("-refine_level","-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
 parser.add_argument("--nu", type=float, dest="viscosity", default=0.2,
@@ -93,6 +94,8 @@ else:
 systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
 systemPara['fluid']['recRes'] = args.recRes
+conf.readinSystemParameters(systemPara, args)
+conf.readinPhysicsParameters(physicsPara, args)
 
 if args.mesh_file[:2] == "__":
     meshData['fluid']['mesh'], meshData['fluid']['bndExPts'], meshData['fluid']['boundIdx'] = mU.sampleMesh(systemPara, args.mesh_file[2:])
