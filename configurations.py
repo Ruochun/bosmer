@@ -12,6 +12,7 @@ def readinSystemParameters(para, args):
     para['adjNS']['solver_rtol'] = 1e-8
     para['adjNS']['solver_atol'] = 1e-8
 
+    # config linear solver: unless you wish to set them one by one, they can be configured in a whole-sale
     if args.ls != "none":
         for sys_name in sys_list:
             para[sys_name]['ls'] = args.ls
