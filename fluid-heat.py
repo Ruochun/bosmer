@@ -95,7 +95,7 @@ systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
 systemPara['fluid']['recRes'] = args.recRes
 conf.readinSystemParameters(systemPara, args)
-conf.readinPhysicsParameters(physicsPara, args)
+conf.readinPhysicalParameters(physicalPara, args)
 
 if args.mesh_file[:2] == "__":
     meshData['fluid']['mesh'], meshData['fluid']['bndExPts'], meshData['fluid']['boundIdx'] = mU.sampleMesh(systemPara, args.mesh_file[2:])
@@ -214,19 +214,17 @@ for iterNo in range(systemPara['maxIter']):
         problemThermal = sS.formProblemThermal(meshData, BCs, physicalPara, funcVar, systemPara) 
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
-        solverNS = sS.formSolverNS(problemNS, systemPara)
-        solverAdjNS = sS.formSolverThermal(problemAdjNS, systemPara) # Linear solver formers can perhaps be the same
-        solverThermal = sS.formSolverThermal(problemThermal, systemPara)
-        solverAdjThermal = sS.formSolverThermal(problemAdjThermal, systemPara)
+        solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara)
+        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara) 
+        solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara)
+        solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara)
 
         # now form the problem solving for the shape gradient
         problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
-        #solverSG = sS.formSolverShapeGradient(problemSG, systemPara)   
-        solverSG = sS.formSolverThermal(problemSG, systemPara)
+        solverSG = sS.formSolverLinearProblem(problemSG, systemPara)
         # now form the problem using linear elasiticity to move the mesh
         problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
-        #solverLE = sS.formSolverShapeGradient(problemLE, systemPara) 
-        solverLE = sS.formSolverThermal(problemLE, systemPara) # SG and LE are both simple linear problems, can use the same former 
+        solverLE = sS.formSolverLinearProblem(problemLE, systemPara) 
 
         info('****************************************')
         info('Problems and solvers sucessfully formed!')

@@ -225,11 +225,7 @@ def formProblemLinearElasticity(meshData, BCs, para, Var, system):
 
 ##### now begin forming solvers ########
 
-def formSolverShapeGradient(problem, system):
-    solver = LinearVariationalSolver(problem)
-    return solver
-
-def formSolverNS(problem, system):
+def formSolverNonLinearProblem(problem, system):
     if system['ns'] == "rmturs":
         linear_solver = formLinearSolver('generic', system)
         solver = rmtursNewtonSolver(linear_solver)
@@ -251,7 +247,7 @@ def formSolverNS(problem, system):
 
     return solver
 
-def formSolverThermal(problem, system):
+def formSolverLinearProblem(problem, system):
     solver_type = "variational"
     if solver_type == "rmturs":
         linear_solver = formLinearSolver('generic', system)
