@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 def sampleMesh(system, msh_name, res=50):
-    ref_num_cells = system['fluid']['recRes']
+    ref_num_cells = system['fluidMesh']['recRes']
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
     if msh_name == "FINS":

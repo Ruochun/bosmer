@@ -25,6 +25,7 @@ def computeObj(meshData, para, Var):
     return assemble(M1), assemble(M2), assemble(M3)-meshData['fluid']['volCons']
 
 def formProblemNS(meshData, BCs, para, Var, system):
+    solver_type = system['NS']['nls']
     W = meshData['fluid']['spaceNS']
     (v, q) = TestFunctions(W)
     w = Var['fluid']['up']#Function(W)
@@ -47,10 +48,10 @@ def formProblemNS(meshData, BCs, para, Var, system):
         )*dx
     F = F + F_stab
     J = derivative(F, w)
-    if system['ns'] == "rmturs":
+    if solver_type == "rmturs":
         assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
         problem = rmtursNonlinearProblem(assem)
-    elif system['ns'] == "variational":
+    elif solver_type == "variational":
         problem = NonlinearVariationalProblem(F, w, BCs['fluid']['NS'], J)
     return problem
 
@@ -225,14 +226,15 @@ def formProblemLinearElasticity(meshData, BCs, para, Var, system):
 
 ##### now begin forming solvers ########
 
-def formSolverNonLinearProblem(problem, system):
-    if system['ns'] == "rmturs":
-        linear_solver = formLinearSolver('generic', system)
+def formSolverNonLinearProblem(problem, para, sys_name):
+    nonlinear_solver_type = para[sys_name]['nls']
+    if nonlinear_solver_type == "rmturs":
+        linear_solver = formLinearSolver(para, sys_name)
         solver = rmtursNewtonSolver(linear_solver)
         solver.parameters["relative_tolerance"] = 1e-8
         solver.parameters["error_on_nonconvergence"] = False
         solver.parameters["maximum_iterations"] = 7
-    elif system['ns'] == "variational":
+    elif nonlinear_solver_type == "variational":
         solver = NonlinearVariationalSolver(problem)
         solver.parameters['newton_solver']['relative_tolerance'] = 1E-9
         solver.parameters['newton_solver']['maximum_iterations'] = 7
@@ -247,10 +249,10 @@ def formSolverNonLinearProblem(problem, system):
 
     return solver
 
-def formSolverLinearProblem(problem, system):
+def formSolverLinearProblem(problem, para, sys_name):
     solver_type = "variational"
     if solver_type == "rmturs":
-        linear_solver = formLinearSolver('generic', system)
+        linear_solver = formLinearSolver(para, sys_name)
         solver = rmtursNewtonSolver(linear_solver)
         solver.parameters["relative_tolerance"] = 1e-6
         solver.parameters["error_on_nonconvergence"] = False
@@ -270,22 +272,21 @@ def formSolverLinearProblem(problem, system):
         #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
-def formLinearSolver(instr, system):   # rmturs needs its linear_solver object
-    if instr == "generic":
-        linear_solver = PETScKrylovSolver() 
-        PETScOptions.clear()
-        linear_solver.parameters["relative_tolerance"] = 1e-9
-        linear_solver.parameters['error_on_nonconvergence'] = False
+def formLinearSolver(para, sys_name):   # rmturs needs its linear_solver object
+    linear_solver = PETScKrylovSolver() 
+    PETScOptions.clear()
+    linear_solver.parameters["relative_tolerance"] = 1e-9
+    linear_solver.parameters['error_on_nonconvergence'] = False
+    PETScOptions.set("ksp_monitor")
+    if para[sys_name]['ls'] == "iterative":
+        PETScOptions.set("ksp_type", "fgmres")
+        PETScOptions.set("ksp_gmres_restart", 100)
+        PETScOptions.set("ksp_max_it", 200)
         PETScOptions.set("ksp_monitor")
-        if system['ls'] == "iterative":
-            PETScOptions.set("ksp_type", "fgmres")
-            PETScOptions.set("ksp_gmres_restart", 100)
-            PETScOptions.set("ksp_max_it", 200)
-            PETScOptions.set("ksp_monitor")
-            #PETScOptions.set("pc_type", "hypre")
-            PETScOptions.set("preconditioner", "default")
-            #PETScOptions.set("nonzero_initial_guess", True)
-        linear_solver.set_from_options()
+        #PETScOptions.set("pc_type", "hypre")
+        PETScOptions.set("preconditioner", "default")
+        #PETScOptions.set("nonzero_initial_guess", True)
+    linear_solver.set_from_options()
     return linear_solver
 
 

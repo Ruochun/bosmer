@@ -16,7 +16,7 @@ commmpi = pmp.COMM_WORLD
 # Parse input arguments
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=
                                  argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--ns", type=str, dest="ns", default="variational",
+parser.add_argument("--nls", type=str, dest="nls", default="variational",
                     choices=["variational", "rmturs"],help="Navier--Stokes non-linear solver, rmturs or FEniCS variational solver")
 parser.add_argument("-refine_level","-l", type=int, dest="level", default=0,
                     help="level of mesh refinement")
@@ -70,7 +70,7 @@ meshData['fluid'] = {}
 BCs['fluid'] = {}
 funcVar['fluid'] = {}
 physicalPara['fluid'] = {}
-systemPara['fluid'] = {}
+systemPara['fluidMesh'] = {}
 outputData['objHeat'] = []
 outputData['objDissp'] = [] 
 outputData['objVol'] = []
@@ -85,15 +85,13 @@ physicalPara['fluid']['T_hat'] = 373.
 physicalPara['fluid']['h_hat'] = .1
 physicalPara['objWeight'] = args.obj_weight
 
-systemPara['ns'] = args.ns
-systemPara['ls'] = args.ls
 if args.ts_per_rm>0:
     systemPara['ts_per_rm'] = args.ts_per_rm
 else:
     systemPara['ts_per_rm'] = 9223372036854775800
 systemPara['maxIter'] = args.max_iter
 systemPara['ts_per_out'] = args.ts_per_out
-systemPara['fluid']['recRes'] = args.recRes
+systemPara['fluidMesh']['recRes'] = args.recRes
 conf.readinSystemParameters(systemPara, args)
 conf.readinPhysicalParameters(physicalPara, args)
 
@@ -214,17 +212,17 @@ for iterNo in range(systemPara['maxIter']):
         problemThermal = sS.formProblemThermal(meshData, BCs, physicalPara, funcVar, systemPara) 
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
-        solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara)
-        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara) 
-        solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara)
-        solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara)
+        solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara, 'NS')
+        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara, 'thermal')
+        solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara, 'adjThermal')
 
         # now form the problem solving for the shape gradient
         problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
-        solverSG = sS.formSolverLinearProblem(problemSG, systemPara)
+        solverSG = sS.formSolverLinearProblem(problemSG, systemPara, 'SG')
         # now form the problem using linear elasiticity to move the mesh
         problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
-        solverLE = sS.formSolverLinearProblem(problemLE, systemPara) 
+        solverLE = sS.formSolverLinearProblem(problemLE, systemPara, 'LE') 
 
         info('****************************************')
         info('Problems and solvers sucessfully formed!')
@@ -238,7 +236,7 @@ for iterNo in range(systemPara['maxIter']):
     info("Begining to solve systems...")
     info('------------------------------')
 
-    if systemPara['ns'] == "rmturs":
+    if systemPara['NS']['nls'] == "rmturs":
         info('===== Navier--Stokes system =====')
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
@@ -254,7 +252,7 @@ for iterNo in range(systemPara['maxIter']):
         #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
         #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
         #solverSG.solve(problemSG, funcVar['fluid']['v'].vector())
-    elif systemPara['ns'] == "variational":
+    elif systemPara['NS']['nls'] == "variational":
         with Timer("SolveSystems") as t_solve:
             solverNS.solve()
             solverThermal.solve()
