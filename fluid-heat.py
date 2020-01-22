@@ -236,29 +236,25 @@ for iterNo in range(systemPara['maxIter']):
     info("Begining to solve systems...")
     info('------------------------------')
 
+    info('===== Navier--Stokes system =====')
     if systemPara['NS']['nls'] == "rmturs":
-        info('===== Navier--Stokes system =====')
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
-        #solverThermal.solve(problemThermal, funcVar['fluid']['T'].vector())
-        info('===== Thermal system =====')
-        solverThermal.solve()
-        info('===== Adjoint thermal system =====')
-        solverAdjThermal.solve() 
-        info('===== Adjoint Navier--Stokes system =====')
-        solverAdjNS.solve()
-        info('===== Shape gradient system =====') 
-        solverSG.solve()
-        #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
-        #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
-        #solverSG.solve(problemSG, funcVar['fluid']['v'].vector())
-    elif systemPara['NS']['nls'] == "variational":
-        with Timer("SolveSystems") as t_solve:
+    elif systemPara['NS']['nls'] == "variational":   
+        with Timer("SolveSystems") as t_solve:    
             solverNS.solve()
-            solverThermal.solve()
-            solverAdjThermal.solve()
-            solverAdjNS.solve()
-            solverSG.solve()
+    info('===== Thermal system =====')
+    solverThermal.solve()
+    info('===== Adjoint thermal system =====')
+    solverAdjThermal.solve() 
+    info('===== Adjoint Navier--Stokes system =====')
+    solverAdjNS.solve()
+    info('===== Shape gradient system =====') 
+    solverSG.solve()
+    #solverThermal.solve(problemThermal, funcVar['fluid']['T'].vector())
+    #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
+    #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
+    #solverSG.solve(problemSG, funcVar['fluid']['v'].vector())
 
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()

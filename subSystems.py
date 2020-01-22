@@ -250,26 +250,21 @@ def formSolverNonLinearProblem(problem, para, sys_name):
     return solver
 
 def formSolverLinearProblem(problem, para, sys_name):
-    solver_type = "variational"
-    if solver_type == "rmturs":
-        linear_solver = formLinearSolver(para, sys_name)
-        solver = rmtursNewtonSolver(linear_solver)
-        solver.parameters["relative_tolerance"] = 1e-6
-        solver.parameters["error_on_nonconvergence"] = False
-        solver.parameters["maximum_iterations"] = 1
-    elif solver_type == "variational":
-        solver = LinearVariationalSolver(problem)
-        #PETScOptions.clear()
-        #PETScOptions.set("ksp_type", "fgmres")
-        #PETScOptions.set("ksp_monitor")
-        #solver.set_from_options()
+    solver = LinearVariationalSolver(problem)
+    #PETScOptions.clear()
+    #PETScOptions.set("ksp_type", "fgmres")
+    #PETScOptions.set("ksp_monitor")
+    #solver.set_from_options()
+    if para[sys_name]['ls'] = 'iterative':
         solver.parameters["linear_solver"] = 'gmres'
-        solver.parameters["krylov_solver"]["relative_tolerance"] = 1e-6
-        solver.parameters["krylov_solver"]["monitor_convergence"] = True
-        solver.parameters["krylov_solver"]["maximum_iterations"] = 1000
-        solver.parameters["krylov_solver"]["report"] = True
-        solver.parameters["krylov_solver"]["error_on_nonconvergence"] = False
-        #for item in solver.parameters["krylov_solver"].items(): print(item)
+    elif para[sys_name]['ls'] = 'direct':
+        solver.parameters["linear_solver"] = 'lu'
+    solver.parameters["krylov_solver"]["relative_tolerance"] = 1e-6
+    solver.parameters["krylov_solver"]["monitor_convergence"] = True
+    solver.parameters["krylov_solver"]["maximum_iterations"] = 1000
+    solver.parameters["krylov_solver"]["report"] = True
+    solver.parameters["krylov_solver"]["error_on_nonconvergence"] = False
+    #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
 def formLinearSolver(para, sys_name):   # rmturs needs its linear_solver object
