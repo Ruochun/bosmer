@@ -238,7 +238,7 @@ def formSolverNonLinearProblem(problem, para, sys_name):
         solver = NonlinearVariationalSolver(problem)
         solver.parameters['newton_solver']['relative_tolerance'] = 1E-9
         solver.parameters['newton_solver']['maximum_iterations'] = 7
-        if system['ls'] == "iterative":
+        if para[sys_name]['ls'] == "iterative":
             solver.parameters['newton_solver']['linear_solver'] = 'gmres'
             solver.parameters['newton_solver']['preconditioner'] = 'default'
             #solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
@@ -255,15 +255,20 @@ def formSolverLinearProblem(problem, para, sys_name):
     #PETScOptions.set("ksp_type", "fgmres")
     #PETScOptions.set("ksp_monitor")
     #solver.set_from_options()
-    if para[sys_name]['ls'] = 'iterative':
-        solver.parameters["linear_solver"] = 'gmres'
-    elif para[sys_name]['ls'] = 'direct':
+    if para[sys_name]['ls'] == 'iterative':
+        solver.parameters["linear_solver"] = para[sys_name]['linear_solver']
+        solver.parameters["preconditioner"] = para[sys_name]['preconditioner']
+    elif para[sys_name]['ls'] == 'direct':
         solver.parameters["linear_solver"] = 'lu'
-    solver.parameters["krylov_solver"]["relative_tolerance"] = 1e-6
-    solver.parameters["krylov_solver"]["monitor_convergence"] = True
-    solver.parameters["krylov_solver"]["maximum_iterations"] = 1000
-    solver.parameters["krylov_solver"]["report"] = True
-    solver.parameters["krylov_solver"]["error_on_nonconvergence"] = False
+
+    for option in para[sys_name]['krylov_solver']:    # iter thru a dict
+        solver.parameters["krylov_solver"][option] = para[sys_name]['krylov_solver'][option]
+
+    #PETScOptions.clear()
+    #for option in para[sys_name]['PETScOptions']:
+    #    PETScOptions.set(option, para[sys_name]['PETScOptions'][option])
+    #solver.set_from_options()
+    
     #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
