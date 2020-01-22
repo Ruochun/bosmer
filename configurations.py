@@ -8,9 +8,13 @@ def readinSystemParameters(para, args):
         para[sys_name] = {} # initialize
         para[sys_name]['krylov_solver'] = {}
         para[sys_name]['PETScOptions'] = {} 
-
+    # NS non-linear solver type, choose from rmtur or FEniCS variational
     para['NS']['nls'] = args.nls
 
+    # config linear solver: 'direct' is for debugging; 'ls' is a choice between 'direct' and 'iterative', not the actual iterative solver name (e.g. gmres)
+    for sys_name in sys_list:
+        para[sys_name]['ls'] = args.ls
+    
     # for advective thermal solver
     para['thermal']['linear_solver'] = 'gmres'
     para['thermal']['preconditioner'] = 'hypre_amg'
@@ -61,10 +65,6 @@ def readinSystemParameters(para, args):
     para['LE']['krylov_solver']['maximum_iterations'] = 300
     para['LE']['krylov_solver']['report'] = True
     para['LE']['krylov_solver']['error_on_nonconvergence'] = False
-
-    # config linear solver: 'direct' is for debugging; 'ls' is a choice between 'direct' and 'iterative', not the actual iterative solver name (e.g. gmres)
-    for sys_name in sys_list:
-        para[sys_name]['ls'] = args.ls
 
 def readinPhysicalParameters(para, args):
     
