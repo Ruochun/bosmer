@@ -347,7 +347,7 @@ def createMeshViaTriangle(meshData, physics, system):
     points = meshData[physics]['bndExPts']
     bounding_idx = meshData[physics]['boundIdx']
     #ref_num_cells = meshData[physics]['initNumCells']
-    ref_num_cells = system['fluid']['recRes']
+    ref_num_cells = system['fluidMesh']['recRes']
 
     maxArea = 0
     minArea = 1000

@@ -13,21 +13,23 @@ def readinSystemParameters(para, args):
     # config linear solver: 'direct' is for debugging; 'ls' is a choice between 'direct' and 'iterative', not the actual iterative solver name (e.g. gmres)
     if args.ls == 'direct':
         for sys_name in sys_list:
+            para[sys_name]['ls'] = 'direct'
             para[sys_name]['general']['linear_solver'] = 'mumps'
     elif args.ls == 'iterative':
         for sys_name in sys_list:
+            para[sys_name]['ls'] = 'iterative'
             para[sys_name]['general']['linear_solver'] = 'gmres'
    
     # for NS solver 
     para['NS']['nls'] = args.nls
     para['NS']['general']['relative_tolerance'] = 1e-8
     para['NS']['general']['error_on_nonconvergence'] = False
-    para['NS']['general']['maximum_iterations'] = 7
+    para['NS']['general']['maximum_iterations'] = 9
     para['NS']['krylov_solver']['ksp_type'] = 'fgmres'
-    para['NS']['krylov_solver']["relative_tolerance"] = 1e-9
+    para['NS']['krylov_solver']["relative_tolerance"] = 3e-5
     para['NS']['krylov_solver']['error_on_nonconvergence'] = False
-    para['NS']['krylov_solver']['ksp_gmres_restart'] = 100
-    para['NS']['krylov_solver']['ksp_max_it'] = 200
+    para['NS']['krylov_solver']['ksp_gmres_restart'] = 50
+    para['NS']['krylov_solver']['ksp_max_it'] = 100
     para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
@@ -57,7 +59,7 @@ def readinSystemParameters(para, args):
     para['adjNS']['general']['preconditioner'] = 'sor'
     para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-6
     para['adjNS']['krylov_solver']['monitor_convergence'] = True
-    para['adjNS']['krylov_solver']['maximum_iterations'] = 1000
+    para['adjNS']['krylov_solver']['maximum_iterations'] = 1500
     para['adjNS']['krylov_solver']['report'] = True
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
 

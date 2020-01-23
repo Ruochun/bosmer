@@ -228,34 +228,34 @@ def formProblemLinearElasticity(meshData, BCs, para, Var, system):
 
 def formSolverNonLinearProblem(problem, para, sys_name):
     nonlinear_solver_type = para[sys_name]['nls']
+
     if nonlinear_solver_type == "rmturs":
         linear_solver = formLinearSolver(para, sys_name)
         solver = rmtursNewtonSolver(linear_solver)
         for option in para[sys_name]['general']:
             solver.parameters[option] = para[sys_name]['general'][option]
+
+    # FEniCS variational nonlinear solver for debug purpose
     elif nonlinear_solver_type == "variational":
         solver = NonlinearVariationalSolver(problem)
-        solver.parameters['newton_solver']['relative_tolerance'] = 1E-9
+        solver.parameters['newton_solver']['relative_tolerance'] = 1E-8
         solver.parameters['newton_solver']['maximum_iterations'] = 7
         if para[sys_name]['ls'] == "iterative":
             solver.parameters['newton_solver']['linear_solver'] = 'gmres'
             solver.parameters['newton_solver']['preconditioner'] = 'default'
             #solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
-            #solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 1E-5
-            solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 200
-            #solver.parameters['newton_solver']['krylov_solver']['restart'] = 20
+            solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 3E-5
+            solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 100
+            #solver.parameters['newton_solver']['krylov_solver']['restart'] = 50
             #solver.parameters['newton_solver']['krylov_solver']['preconditioner']['ilu']['fill_level'] = 0
-
     return solver
 
 def formSolverLinearProblem(problem, para, sys_name):
     solver = LinearVariationalSolver(problem)
-    #PETScOptions.clear()
-    #PETScOptions.set("ksp_type", "fgmres")
-    #PETScOptions.set("ksp_monitor")
-    #solver.set_from_options()
-    exposed_list = ['relative_tolerance', 'absolute_tolerance', 'error_on_nonconvergence']
     for component in para[sys_name]: # components typically include a 'general'(high-level) block and a 'krylov_solver'(linear solver specs) block
+        if not(isinstance(para[sys_name][component], dict)):
+            continue
+
         if component == "general":
             for option in para[sys_name]["general"]:
                 solver.parameters[option] = para[sys_name]["general"][option]
@@ -263,11 +263,6 @@ def formSolverLinearProblem(problem, para, sys_name):
             for option in para[sys_name][component]:
                 solver.parameters[component][option] = para[sys_name][component][option]
 
-    #PETScOptions.clear()
-    #for option in para[sys_name]['PETScOptions']:
-    #    PETScOptions.set(option, para[sys_name]['PETScOptions'][option])
-    #solver.set_from_options()
-    
     #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
