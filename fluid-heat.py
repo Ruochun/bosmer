@@ -121,7 +121,7 @@ else:
 assert mesh is not None
 
 meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
-print("Fluid mesh has volume: ", meshData['fluid']['initVol'])
+info("Fluid mesh has volume: {:f}".format(meshData['fluid']['initVol']))
 
 if args.volCons[-1] == "*":
     meshData['fluid']['volCons'] = float(args.volCons[:-1])*meshData['fluid']['initVol']
