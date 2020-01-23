@@ -4,20 +4,35 @@ from mshr import *
 def readinSystemParameters(para, args):
 
     sys_list = ['NS', 'adjNS', 'thermal', 'adjThermal', 'SG', 'LE'] # list of all system names
+    component_list = ['general', 'krylov_solver']
     for sys_name in sys_list:
         para[sys_name] = {} # initialize
-        para[sys_name]['krylov_solver'] = {}
-        para[sys_name]['PETScOptions'] = {} 
-    # NS non-linear solver type, choose from rmtur or FEniCS variational
-    para['NS']['nls'] = args.nls
+        for cpn_name in component_list:
+            para[sys_name][cpn_name] = {}
 
     # config linear solver: 'direct' is for debugging; 'ls' is a choice between 'direct' and 'iterative', not the actual iterative solver name (e.g. gmres)
-    for sys_name in sys_list:
-        para[sys_name]['ls'] = args.ls
-    
+    if args.ls == 'direct':
+        for sys_name in sys_list:
+            para[sys_name]['general']['linear_solver'] = 'mumps'
+    elif args.ls == 'iterative':
+        for sys_name in sys_list:
+            para[sys_name]['general']['linear_solver'] = 'gmres'
+   
+    # for NS solver 
+    para['NS']['nls'] = args.nls
+    para['NS']['general']['relative_tolerance'] = 1e-8
+    para['NS']['general']['error_on_nonconvergence'] = False
+    para['NS']['general']['maximum_iterations'] = 7
+    para['NS']['krylov_solver']['ksp_type'] = 'fgmres'
+    para['NS']['krylov_solver']["relative_tolerance"] = 1e-9
+    para['NS']['krylov_solver']['error_on_nonconvergence'] = False
+    para['NS']['krylov_solver']['ksp_gmres_restart'] = 100
+    para['NS']['krylov_solver']['ksp_max_it'] = 200
+    para['NS']['krylov_solver']['ksp_monitor'] = []
+    para['NS']['krylov_solver']['preconditioner'] = 'default'
+
     # for advective thermal solver
-    para['thermal']['linear_solver'] = 'gmres'
-    para['thermal']['preconditioner'] = 'hypre_amg'
+    para['thermal']['general']['preconditioner'] = 'hypre_amg'
     para['thermal']['krylov_solver']['relative_tolerance'] = 1e-6
     para['thermal']['krylov_solver']['monitor_convergence'] = True
     para['thermal']['krylov_solver']['maximum_iterations'] = 300
@@ -31,8 +46,7 @@ def readinSystemParameters(para, args):
     #para['thermal']['PETScOptions']['boomeramg_agg_nl'] = 1
 
     # for adjoint advective thermal solver
-    para['adjThermal']['linear_solver'] = 'gmres'
-    para['adjThermal']['preconditioner'] = 'hypre_amg'
+    para['adjThermal']['general']['preconditioner'] = 'hypre_amg'
     para['adjThermal']['krylov_solver']['relative_tolerance'] = 1e-6
     para['adjThermal']['krylov_solver']['monitor_convergence'] = True
     para['adjThermal']['krylov_solver']['maximum_iterations'] = 300
@@ -40,8 +54,7 @@ def readinSystemParameters(para, args):
     para['adjThermal']['krylov_solver']['error_on_nonconvergence'] = False
 
     # for adjoint NS solver    
-    para['adjNS']['linear_solver'] = 'gmres'
-    para['adjNS']['preconditioner'] = 'sor'
+    para['adjNS']['general']['preconditioner'] = 'sor'
     para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-6
     para['adjNS']['krylov_solver']['monitor_convergence'] = True
     para['adjNS']['krylov_solver']['maximum_iterations'] = 1000
@@ -49,8 +62,7 @@ def readinSystemParameters(para, args):
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
 
     # for shape gradient calculation
-    para['SG']['linear_solver'] = 'gmres'
-    para['SG']['preconditioner'] = 'default'
+    para['SG']['general']['preconditioner'] = 'default'
     para['SG']['krylov_solver']['relative_tolerance'] = 1e-6
     para['SG']['krylov_solver']['monitor_convergence'] = True
     para['SG']['krylov_solver']['maximum_iterations'] = 300
@@ -58,8 +70,7 @@ def readinSystemParameters(para, args):
     para['SG']['krylov_solver']['error_on_nonconvergence'] = False
 
     # for linear elasticity mesh motion 
-    para['LE']['linear_solver'] = 'gmres'
-    para['LE']['preconditioner'] = 'default'
+    para['LE']['general']['preconditioner'] = 'default'
     para['LE']['krylov_solver']['relative_tolerance'] = 1e-6
     para['LE']['krylov_solver']['monitor_convergence'] = True
     para['LE']['krylov_solver']['maximum_iterations'] = 300
