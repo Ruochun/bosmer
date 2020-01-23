@@ -259,7 +259,7 @@ def formSolverLinearProblem(problem, para, sys_name):
         solver.parameters["linear_solver"] = para[sys_name]['linear_solver']
         solver.parameters["preconditioner"] = para[sys_name]['preconditioner']
     elif para[sys_name]['ls'] == 'direct':
-        solver.parameters["linear_solver"] = 'lu'
+        solver.parameters["linear_solver"] = 'mumps'
 
     for option in para[sys_name]['krylov_solver']:    # iter thru a dict
         solver.parameters["krylov_solver"][option] = para[sys_name]['krylov_solver'][option]

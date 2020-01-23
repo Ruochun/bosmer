@@ -41,7 +41,7 @@ def readinSystemParameters(para, args):
 
     # for adjoint NS solver    
     para['adjNS']['linear_solver'] = 'gmres'
-    para['adjNS']['preconditioner'] = 'default'
+    para['adjNS']['preconditioner'] = 'sor'
     para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-6
     para['adjNS']['krylov_solver']['monitor_convergence'] = True
     para['adjNS']['krylov_solver']['maximum_iterations'] = 1000
