@@ -3,6 +3,9 @@ from mshr import *
 
 def readinSystemParameters(para, args):
 
+    readinEssentials(para, args)
+
+    # the following is about the solvers
     sys_list = ['NS', 'adjNS', 'thermal', 'adjThermal', 'SG', 'LE'] # list of all system names
     component_list = ['general', 'krylov_solver']
     for sys_name in sys_list:
@@ -79,7 +82,29 @@ def readinSystemParameters(para, args):
     para['LE']['krylov_solver']['report'] = True
     para['LE']['krylov_solver']['error_on_nonconvergence'] = False
 
+    return
+
 def readinPhysicalParameters(para, args):
     
+    para['fluid']['nu'] = args.viscosity
+    para['fluid']['Pe'] = args.Pe
+    para['stepLen'] = args.step_length
+    para['fluid']['T_hat'] = 373.
+    para['fluid']['h_hat'] = .1
+    para['objWeight'] = args.obj_weight
+    
     return
+
+def readinEssentials(para, args):
+
+    if args.ts_per_rm>0:
+        para['ts_per_rm'] = args.ts_per_rm
+    else:
+        para['ts_per_rm'] = 9223372036854775800
+    para['maxIter'] = args.max_iter
+    para['ts_per_out'] = args.ts_per_out
+    para['fluidMesh']['recRes'] = args.recRes
+
+    return
+
 

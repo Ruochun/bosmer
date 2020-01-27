@@ -78,20 +78,6 @@ outputData['objVol'] = []
 
 
 # load in system settings and physical parameters
-physicalPara['fluid']['nu'] = args.viscosity
-physicalPara['fluid']['Pe'] = args.Pe
-physicalPara['stepLen'] = args.step_length
-physicalPara['fluid']['T_hat'] = 373.
-physicalPara['fluid']['h_hat'] = .1
-physicalPara['objWeight'] = args.obj_weight
-
-if args.ts_per_rm>0:
-    systemPara['ts_per_rm'] = args.ts_per_rm
-else:
-    systemPara['ts_per_rm'] = 9223372036854775800
-systemPara['maxIter'] = args.max_iter
-systemPara['ts_per_out'] = args.ts_per_out
-systemPara['fluidMesh']['recRes'] = args.recRes
 conf.readinSystemParameters(systemPara, args)
 conf.readinPhysicalParameters(physicalPara, args)
 
