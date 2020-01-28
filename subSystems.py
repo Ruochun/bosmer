@@ -12,6 +12,12 @@ def sigma(u):
     lam = E*nu/((1.+nu)*(1.-2.*nu))
     return 2.*mu*epsilon(u) + lam*tr(epsilon(u))*Identity(len(u))
 
+def flowDirection(u):
+    if len(u) == 2:
+        D = Expression(("1.0","0.0"), degree=1)
+    elif len(u) == 3:
+        D = Expression(("1.0","0.0","0.0"), degree=1) 
+    return D
 ###### now begining form problems ########
 
 def computeObj(meshData, para, Var):
@@ -19,7 +25,8 @@ def computeObj(meshData, para, Var):
     dX = meshData['fluid']['dX']
     T = Var['fluid']['T']
     (u, _) = split(Var['fluid']['up'])
-    M1 = para['objWeight']*(-T)*dX(90) # heat obj
+    flowDir = flowDirection(u)
+    M1 = para['objWeight']*(-T)*dot(u, flowDir)*dX(90) # heat obj
     M2 = inner(grad(u), grad(u))*dx # dissp obj
     M3 = Constant(1.)*dx # volume obj
     return assemble(M1), assemble(M2), assemble(M3)-meshData['fluid']['volCons']
@@ -66,6 +73,7 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
         (u, p) = TrialFunctions(W)
     #dw = TrialFunction(W)
     dx = meshData['fluid']['dx']
+    dX = meshData['fluid']['dX']
     nu = para['fluid']['nu']
     (u_, p_) = split(Var['fluid']['up'])
     T_ = Var['fluid']['T']
@@ -73,6 +81,7 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
 
     h_ugn = meshData['fluid']['hmax']
     h_rgn = meshData['fluid']['hmin']
+    flowDir = flowDirection(u_)
     tau_sugn3 = h_rgn**2/(4.0*nu)
     tau_supg = 1.0/sqrt(4.0/h_ugn**2 + 1.0/tau_sugn3**2)
     tau_pspg = tau_supg
@@ -87,7 +96,9 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
             + dot(dot(v, nabla_grad(u_)), u) + dot(dot(u_, nabla_grad(v)), u)
             - q*div(u) + dot(grad(T_), v)*T_prime
             - 2.*inner(grad(u_), grad(v))
-        )*dx
+        )*dx + (
+            para['objWeight']*dot(v, flowDir)*T_
+        )*dX(90)
     F = F + F_stab
 
     if solver_type == "rmturs":
@@ -163,6 +174,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
 
     h_ugn = meshData['fluid']['hmax']
     h_rgn = meshData['fluid']['hmin']
+    flowDir = flowDirection(u_)
     tau_supg = 1.0/sqrt(4.0/h_ugn**2)
     #momEqn = -1.0/Pe*div(grad(T)) + dot(u_, grad(T))
     #F_stab = (tau_supg*dot(grad(S), u_)*momEqn)*dx
@@ -174,7 +186,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         )*dx + (
             T*S*h_hat
         )*ds(0) + (
-            para['objWeight']*S
+            para['objWeight']*S*dot(u_, flowDir)
         )*dX(90)
     F = F + F_stab
 

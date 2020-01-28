@@ -253,6 +253,13 @@ for iterNo in range(systemPara['maxIter']):
     if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
+        u_out.rename("u", "u")
+        p_out.rename("p", "p")
+        adj_u_out.rename("adj_u", "adj_u")
+        adj_p_out.rename("adj_p", "adj_p")
+        funcVar['fluid']['T'].rename("T", "T")
+        funcVar['fluid']['T_prime'].rename("adj_T", "adj_T")
+        #funcVar['fluid']['v'].rename("sg", "sg")
         uFile << (u_out, iterNo)
         pFile << (p_out, iterNo)
         adj_uFile << (adj_u_out, iterNo)
