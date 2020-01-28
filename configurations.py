@@ -31,7 +31,7 @@ def readinSystemParameters(para, args):
     para['NS']['krylov_solver']['ksp_type'] = 'fgmres'
     para['NS']['krylov_solver']["relative_tolerance"] = 1e-8
     para['NS']['krylov_solver']['error_on_nonconvergence'] = False
-    para['NS']['krylov_solver']['ksp_gmres_restart'] = 150
+    para['NS']['krylov_solver']['ksp_gmres_restart'] = 300
     para['NS']['krylov_solver']['ksp_max_it'] = 500
     para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'

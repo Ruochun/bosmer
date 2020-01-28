@@ -71,7 +71,7 @@ def sampleMesh(system, msh_name, res=200):
         domain_r = Box(Point(0.,0.,0.), Point(28.,.8,z_max))
         for i in range(20):
             cx = .7*i + 28./4
-            domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,z_max), radii, radii, 16)
+            domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,3*z_max/4), radii, radii, 16)
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -94,7 +94,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>25.) 
+            return not(on_boundary) and (x[0]>26.5) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -138,7 +138,7 @@ def applyNSBCs(meshData, markers):
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90, bc91]
+    return [bc0, bc1, bc90, bc91] # top is ?
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -150,7 +150,7 @@ def applyAdjNSBCs(meshData, markers):
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90, bc91]
+    return [bc0, bc1, bc90, bc91] # top is ?
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
