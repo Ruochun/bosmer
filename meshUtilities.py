@@ -4,7 +4,7 @@ from mshr import *
 import numpy as np
 import os
 
-def sampleMesh(system, msh_name, res=50):
+def sampleMesh(system, msh_name, res=200):
     ref_num_cells = system['fluidMesh']['recRes']
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
@@ -57,19 +57,21 @@ def sampleMesh(system, msh_name, res=50):
                              - Rectangle(Point(2.,1./6.), Point(3.,2./6.))
                              - Rectangle(Point(3.,4./6.), Point(4.,5./6.)))
         bnd_pts.extend([1.,4./6.,2.,1./6.,3.,4./6.])
-    elif msh_name == "cyl":
-        radii = .25
-        domain_r = Box(Point(0.,0.,0.), Point(5.,1.,1.))
-        domain_r = (domain_r - Cylinder(Point(1.5,.5,1.), Point(1.,.5,0.), radii, radii, res)
-                             - Cylinder(Point(2.5,.5,1.), Point(2.,.5,0.), radii, radii, res)
-                             - Cylinder(Point(3.5,.5,1.), Point(3.,.5,0.), radii, radii, res))
     elif msh_name == "3D_3cyl":
         scale = 10.
         radii = scale*.025
         domain_r = Box(Point(0.,0.,0.), Point(scale*1.,scale*.1,scale*.2))
-        domain_r = (domain_r - Cylinder(Point(scale*.35,scale*.05,scale*.1), Point(scale*.35,scale*.05,scale*0.), radii, radii, res)
-                             - Cylinder(Point(scale*.5,scale*.05,scale*.1), Point(scale*.5,scale*.05,scale*0.), radii, radii, res)
-                             - Cylinder(Point(scale*.65,scale*.05,scale*.1), Point(scale*.65,scale*.05,scale*0.), radii, radii, res))
+        domain_r = (domain_r - Cylinder(Point(scale*.35,scale*.05,scale*.1), Point(scale*.35,scale*.05,scale*0.), radii, radii, 16)
+                             - Cylinder(Point(scale*.5,scale*.05,scale*.1), Point(scale*.5,scale*.05,scale*0.), radii, radii, 16)
+                             - Cylinder(Point(scale*.65,scale*.05,scale*.1), Point(scale*.65,scale*.05,scale*0.), radii, radii, 16))
+    elif msh_name == "3D_20cyl":
+        z_max = 1.
+        cy = .4
+        radii = .15
+        domain_r = Box(Point(0.,0.,0.), Point(28.,.8,z_max))
+        for i in range(20):
+            cx = .7*i + 28./4
+            domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,z_max), radii, radii, 16)
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -92,7 +94,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>9.4) 
+            return not(on_boundary) and (x[0]>25.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -108,13 +110,13 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>10.-eps
+            return on_boundary and x[0]>28.-eps
     class slipWally(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>1.-eps)
+            return on_boundary and (x[1]<eps or x[1]>.8-eps)
     class slipWallz(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[2]>2.-eps
+            return on_boundary and x[2]>1.-eps
 
     solidWall().mark(boundary, 0)
     slipWally().mark(boundary, 90)
