@@ -44,6 +44,8 @@ parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", def
                     help="instruct the code to generate mesh that has at least this many elements")
 parser.add_argument("--immediate_rm", dest="immediate_remesh", action='store_true',
                     help="instruct the code to remesh before starting the first iteration using the integrated remeshing algorithm")
+parser.add_argument("--periodic", type=str, dest="periodic", default="none", choices=["none", "y"],
+                    help="instruct the code to construct periodic function space w.r.t. a certain direction, for example, you can supply \'y\' as the parameter")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
                     help="volume constraint, supply a number, or a number and a \'*\' in the end allowing the initial domain to expand that many times larger (or smaller)")
 args = parser.parse_args(sys.argv[1:])
@@ -106,6 +108,7 @@ else:
 
 assert mesh is not None
 
+meshData['fluid']['topoDim'] = mesh.topology().dim()
 meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 info("Fluid mesh has volume: {:f}".format(meshData['fluid']['initVol']))
 
@@ -168,7 +171,10 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
-        pbc = None#gU.yPeriodic(mapFrom=0.0, mapTo=0.8)
+        if args.periodic != "none":
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8)
+        else:
+            pbc = None
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
         Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
