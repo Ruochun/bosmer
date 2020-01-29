@@ -64,13 +64,13 @@ def sampleMesh(system, msh_name, res=200):
         domain_r = (domain_r - Cylinder(Point(scale*.35,scale*.05,scale*.1), Point(scale*.35,scale*.05,scale*0.), radii, radii, 16)
                              - Cylinder(Point(scale*.5,scale*.05,scale*.1), Point(scale*.5,scale*.05,scale*0.), radii, radii, 16)
                              - Cylinder(Point(scale*.65,scale*.05,scale*.1), Point(scale*.65,scale*.05,scale*0.), radii, radii, 16))
-    elif msh_name == "3D_20cyl":
+    elif msh_name == "3D_10cyl":
         z_max = 1.
         cy = .4
         radii = .15
-        domain_r = Box(Point(0.,0.,0.), Point(28.,.8,z_max))
-        for i in range(20):
-            cx = .7*i + 28./4
+        domain_r = Box(Point(0.,0.,0.), Point(14.,.8,z_max))
+        for i in range(10):
+            cx = .7*i + 14./4
             domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,3*z_max/4), radii, radii, 16)
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
@@ -94,7 +94,7 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>26.5) 
+            return not(on_boundary) and (x[0]>13.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
@@ -110,7 +110,7 @@ def markBoundaries(mesh):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>28.-eps
+            return on_boundary and x[0]>14.-eps
     class slipWally(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and (x[1]<eps or x[1]>.8-eps)

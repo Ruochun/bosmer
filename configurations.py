@@ -33,13 +33,13 @@ def readinSystemParameters(para, args):
     para['NS']['krylov_solver']['error_on_nonconvergence'] = False
     para['NS']['krylov_solver']['ksp_gmres_restart'] = 300
     para['NS']['krylov_solver']['ksp_max_it'] = 500
-    para['NS']['krylov_solver']['ksp_monitor'] = []
+    #para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
     # for advective thermal solver
     para['thermal']['general']['preconditioner'] = 'hypre_amg'
     para['thermal']['krylov_solver']['relative_tolerance'] = 1e-8
-    para['thermal']['krylov_solver']['monitor_convergence'] = True
+    #para['thermal']['krylov_solver']['monitor_convergence'] = True
     para['thermal']['krylov_solver']['maximum_iterations'] = 300
     para['thermal']['krylov_solver']['report'] = True
     para['thermal']['krylov_solver']['error_on_nonconvergence'] = False
@@ -53,7 +53,7 @@ def readinSystemParameters(para, args):
     # for adjoint advective thermal solver
     para['adjThermal']['general']['preconditioner'] = 'hypre_amg'
     para['adjThermal']['krylov_solver']['relative_tolerance'] = 1e-8
-    para['adjThermal']['krylov_solver']['monitor_convergence'] = True
+    #para['adjThermal']['krylov_solver']['monitor_convergence'] = True
     para['adjThermal']['krylov_solver']['maximum_iterations'] = 300
     para['adjThermal']['krylov_solver']['report'] = True
     para['adjThermal']['krylov_solver']['error_on_nonconvergence'] = False
@@ -69,7 +69,7 @@ def readinSystemParameters(para, args):
     # for shape gradient calculation
     para['SG']['general']['preconditioner'] = 'default'
     para['SG']['krylov_solver']['relative_tolerance'] = 1e-8
-    para['SG']['krylov_solver']['monitor_convergence'] = True
+    #para['SG']['krylov_solver']['monitor_convergence'] = True
     para['SG']['krylov_solver']['maximum_iterations'] = 300
     para['SG']['krylov_solver']['report'] = True
     para['SG']['krylov_solver']['error_on_nonconvergence'] = False
@@ -77,7 +77,7 @@ def readinSystemParameters(para, args):
     # for linear elasticity mesh motion 
     para['LE']['general']['preconditioner'] = 'default'
     para['LE']['krylov_solver']['relative_tolerance'] = 1e-8
-    para['LE']['krylov_solver']['monitor_convergence'] = True
+    #para['LE']['krylov_solver']['monitor_convergence'] = True
     para['LE']['krylov_solver']['maximum_iterations'] = 300
     para['LE']['krylov_solver']['report'] = True
     para['LE']['krylov_solver']['error_on_nonconvergence'] = False
