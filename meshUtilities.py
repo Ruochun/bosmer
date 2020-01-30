@@ -99,26 +99,33 @@ def markSubDomains(mesh):
     return subDomains     
 
 def markBoundaries(mesh):
+    totLen = 14.
+    height = 1.
+    width = .8
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
     boundary.set_all(99)
     class solidWall(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary
+    class in_outRamp(SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and x[2]<eps and (x[0]<totLen/4 or x[0]>3*totLen/4)
     class inflow(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0]<eps
     class outflow(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[0]>14.-eps
+            return on_boundary and x[0]>totLen-eps
     class slipWally(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and (x[1]<eps or x[1]>.8-eps)
+            return on_boundary and (x[1]<eps or x[1]>width-eps)
     class slipWallz(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[2]>1.-eps
+            return on_boundary and x[2]>height-eps
 
     solidWall().mark(boundary, 0)
+    in_outRamp().mark(boundary, 10)
     slipWally().mark(boundary, 90)
     slipWallz().mark(boundary, 91)
     inflow().mark(boundary, 1)
@@ -136,9 +143,10 @@ def applyNSBCs(meshData, markers):
         inflow = Expression(('u_in', '0.0', '0.0'), u_in=u0, degree=2)
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
+    bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90, bc91] # top is ?
+    return [bc0, bc1, bc10, bc90, bc91] # top is ?
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -148,9 +156,10 @@ def applyAdjNSBCs(meshData, markers):
         noslip = Constant((0., 0., 0.))
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
+    bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90, bc91] # top is ?
+    return [bc0, bc1, bc10, bc90, bc91] # top is ?
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
@@ -170,9 +179,10 @@ def applyShapeGradientBCs(meshData, markers):
         noslip = Constant((0., 0., 0.))
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc2 = DirichletBC(W.sub(0), noslip, markers, 2)
+    bc10 = DirichletBC(W.sub(0), noslip, markers, 10)
     bc90 = DirichletBC(W.sub(0), noslip, markers, 90)
     bc91 = DirichletBC(W.sub(0), noslip, markers, 91)
-    return [bc1, bc2, bc90, bc91] 
+    return [bc1, bc2, bc10, bc90, bc91] 
 
 def applyLinearElasticityBCs(meshData, markers, Var, para):
     alpha = para['stepLen']
@@ -184,10 +194,11 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
         noslip = Constant((0., 0., 0.))
     bc0 = DirichletBC(W, v, markers, 0)
     bc1 = DirichletBC(W, noslip, markers, 1)
-    bc2 = DirichletBC(W, noslip, markers, 2)    
+    bc2 = DirichletBC(W, noslip, markers, 2)   
+    bc10 = DirichletBC(W, noslip, markers, 10)
     bc90 = DirichletBC(W, noslip, markers, 90)
     bc91 = DirichletBC(W, noslip, markers, 91)
-    return [bc0, bc1, bc2, bc90, bc91] 
+    return [bc0, bc1, bc2, bc10, bc90, bc91] 
 
 
 ### remeshing utilities
