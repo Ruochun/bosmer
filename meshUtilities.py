@@ -110,7 +110,7 @@ def markBoundaries(mesh):
             return on_boundary
     class in_outRamp(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[2]<eps and (x[0]<totLen/4 or x[0]>3*totLen/4)
+            return on_boundary and x[2]<eps and (x[0]<totLen/4-.7 or x[0]>3*totLen/4+.7)
     class inflow(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0]<eps
