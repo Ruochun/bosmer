@@ -27,12 +27,12 @@ def readinSystemParameters(para, args):
     para['NS']['nls'] = args.nls
     para['NS']['general']['relative_tolerance'] = 1e-10
     para['NS']['general']['error_on_nonconvergence'] = False
-    para['NS']['general']['maximum_iterations'] = 7
+    para['NS']['general']['maximum_iterations'] = 10
     para['NS']['krylov_solver']['ksp_type'] = 'fgmres'
     para['NS']['krylov_solver']["relative_tolerance"] = 1e-8
     para['NS']['krylov_solver']['error_on_nonconvergence'] = False
-    #para['NS']['krylov_solver']['ksp_gmres_restart'] = 300
-    para['NS']['krylov_solver']['ksp_max_it'] = 1000
+    #para['NS']['krylov_solver']['ksp_gmres_restart'] = 500
+    para['NS']['krylov_solver']['ksp_max_it'] = 250
     para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
@@ -60,9 +60,9 @@ def readinSystemParameters(para, args):
 
     # for adjoint NS solver    
     para['adjNS']['general']['preconditioner'] = 'sor'
-    para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-6
+    para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-7
     para['adjNS']['krylov_solver']['monitor_convergence'] = True
-    para['adjNS']['krylov_solver']['maximum_iterations'] = 2500
+    para['adjNS']['krylov_solver']['maximum_iterations'] = 4000
     para['adjNS']['krylov_solver']['report'] = True
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
 
