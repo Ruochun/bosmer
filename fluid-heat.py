@@ -124,6 +124,7 @@ krylov_iters = 0
 solution_time = 0.0
 
 meshFile = File(args.out_folder+"/mesh.pvd")
+bndFile = File(args.out_folder+"/bnd.pvd")
 uFile = File(args.out_folder+"/velocity.pvd")
 pFile = File(args.out_folder+"/pressure.pvd")
 adj_uFile = File(args.out_folder+"/adj_velocity.pvd")
@@ -223,6 +224,7 @@ for iterNo in range(systemPara['maxIter']):
 
     if (iterNo+1) % systemPara['ts_per_out']==0:
         meshFile << (mesh, iterNo)
+        bndFile << (boundary_markers, iterNo)
     ########### Begining solving systems ###############################
     info('------------------------------')
     info("Begining to solve systems...")

@@ -71,7 +71,14 @@ def sampleMesh(system, msh_name, res=200):
         domain_r = Box(Point(0.,0.,0.), Point(14.,.8,z_max))
         for i in range(10):
             cx = .7*i + 14./4
-            domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,3*z_max/4), radii, radii, 16)
+            domain_r = domain_r - Cylinder(Point(cx,cy,0.), Point(cx,cy,3*z_max/4), radii, radii, 30)
+    elif msh_name == "3D_SQUARES":
+        z_max = 1.
+        domain_r = Box(Point(0.,0.,0.), Point(16.,1.6,z_max))
+        for i in range(10):
+            pos_x = .8*i + 4.
+            pos_y = .8*((i+1)%2) + .25
+            domain_r = domain_r - Box(Point(pos_x, pos_y, 0.0), Point(pos_x+.8, pos_y+.3, 3*z_max/4))
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -94,14 +101,14 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>13.) 
+            return not(on_boundary) and (x[0]>15.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 14.
+    totLen = 16.
     height = 1.
-    width = .8
+    width = 1.6
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
     boundary.set_all(99)
@@ -110,7 +117,7 @@ def markBoundaries(mesh):
             return on_boundary
     class in_outRamp(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[2]<eps and (x[0]<totLen/4-.7 or x[0]>3*totLen/4+.7)
+            return on_boundary and x[2]<eps and (x[0]<totLen/4-.8 or x[0]>3*totLen/4+.8)
     class inflow(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0]<eps

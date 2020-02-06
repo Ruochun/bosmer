@@ -33,7 +33,7 @@ def readinSystemParameters(para, args):
     para['NS']['krylov_solver']['error_on_nonconvergence'] = False
     #para['NS']['krylov_solver']['ksp_gmres_restart'] = 500
     para['NS']['krylov_solver']['ksp_max_it'] = 250
-    para['NS']['krylov_solver']['ksp_monitor'] = []
+    #para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
     # for advective thermal solver
@@ -59,10 +59,10 @@ def readinSystemParameters(para, args):
     para['adjThermal']['krylov_solver']['error_on_nonconvergence'] = False
 
     # for adjoint NS solver    
-    para['adjNS']['general']['preconditioner'] = 'sor'
+    para['adjNS']['general']['preconditioner'] = 'hypre_amg'
     para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-7
     para['adjNS']['krylov_solver']['monitor_convergence'] = True
-    para['adjNS']['krylov_solver']['maximum_iterations'] = 4000
+    para['adjNS']['krylov_solver']['maximum_iterations'] = 500
     para['adjNS']['krylov_solver']['report'] = True
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
 
