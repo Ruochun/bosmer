@@ -79,6 +79,11 @@ def sampleMesh(system, msh_name, res=200):
             pos_x = .8*i + 4.
             pos_y = .8*((i+1)%2) + .25
             domain_r = domain_r - Box(Point(pos_x, pos_y, 0.0), Point(pos_x+.8, pos_y+.3, 3*z_max/4))
+    elif msh_name == "3D_STRAIGHT":
+        length = 14.
+        width = .3
+        domain_r = Box(Point(0.,0.,0.), Point(length,1.,1.))
+        domain_r = domain_r - Box(Point(length/4,1.-width,0.), Point(3*length/4,1.,1.))
     else:
         info("!!!!! Unknown sample mesh type !!!!!")
         return None, None, None
@@ -101,14 +106,15 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>15.) 
+            return not(on_boundary) and (x[0]>13.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 16.
+    totLen = 14.
     height = 1.
-    width = 1.6
+    width = 1.
+    incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
     boundary.set_all(99)
@@ -117,7 +123,7 @@ def markBoundaries(mesh):
             return on_boundary
     class in_outRamp(SubDomain):
         def inside(self, x, on_boundary):
-            return on_boundary and x[2]<eps and (x[0]<totLen/4-.8 or x[0]>3*totLen/4+.8)
+            return on_boundary and x[2]<eps and (x[0]<totLen/4-incre or x[0]>3*totLen/4+incre)
     class inflow(SubDomain):
         def inside(self, x, on_boundary):
             return on_boundary and x[0]<eps
