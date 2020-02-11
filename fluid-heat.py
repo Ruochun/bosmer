@@ -206,7 +206,7 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara, 'NS')
-        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        solverAdjNS = sS.formSolverNonLinearProblem(problemAdjNS, systemPara, 'adjNS') 
         solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara, 'thermal')
         solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara, 'adjThermal')
 
@@ -234,17 +234,25 @@ for iterNo in range(systemPara['maxIter']):
     if systemPara['NS']['nls'] == "rmturs":
         with Timer("SolveSystems") as t_solve:
             newton_iters, converged = solverNS.solve(problemNS, funcVar['fluid']['up'].vector())
+        info('===== Thermal system =====')
+        solverThermal.solve()
+        info('===== Adjoint thermal system =====')
+        solverAdjThermal.solve()
+        info('===== Adjoint Navier--Stokes system =====')
+        newton_iters, converged = solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())
+        info('===== Shape gradient system =====')
+        solverSG.solve()
     elif systemPara['NS']['nls'] == "variational":   
         with Timer("SolveSystems") as t_solve:    
             solverNS.solve()
-    info('===== Thermal system =====')
-    solverThermal.solve()
-    info('===== Adjoint thermal system =====')
-    solverAdjThermal.solve() 
-    info('===== Adjoint Navier--Stokes system =====')
-    solverAdjNS.solve()
-    info('===== Shape gradient system =====') 
-    solverSG.solve()
+        info('===== Thermal system =====')
+        solverThermal.solve()
+        info('===== Adjoint thermal system =====')
+        solverAdjThermal.solve() 
+        info('===== Adjoint Navier--Stokes system =====')
+        solverAdjNS.solve()
+        info('===== Shape gradient system =====') 
+        solverSG.solve()
     #solverThermal.solve(problemThermal, funcVar['fluid']['T'].vector())
     #solverAdjThermal.solve(problemAdjThermal, funcVar['fluid']['T_prime'].vector())
     #solverAdjNS.solve(problemAdjNS, funcVar['fluid']['up_prime'].vector())

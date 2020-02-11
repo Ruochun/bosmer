@@ -65,7 +65,7 @@ def formProblemNS(meshData, BCs, para, Var, system):
 def formProblemAdjNS(meshData, BCs, para, Var, system):
     W = meshData['fluid']['spaceNS']
     (v, q) = TestFunctions(W)
-    solver_type = "variational"
+    solver_type = "rmturs"
     if solver_type == "rmturs":
         w = Var['fluid']['up_prime']
         (u, p) = split(w)

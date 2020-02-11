@@ -36,6 +36,23 @@ def readinSystemParameters(para, args):
     #para['NS']['krylov_solver']['ksp_monitor'] = []
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
+    # for adjoint NS solver
+    para['adjNS']['nls'] = args.nls
+    para['adjNS']['general']['relative_tolerance'] = 1e-7
+    para['adjNS']['general']['error_on_nonconvergence'] = False
+    para['adjNS']['general']['maximum_iterations'] = 1
+    para['adjNS']['krylov_solver']['ksp_type'] = 'gmres'
+    para['adjNS']['krylov_solver']["relative_tolerance"] = 1e-7
+    para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
+    para['adjNS']['krylov_solver']['ksp_max_it'] = 2500
+    para['adjNS']['krylov_solver']['ksp_monitor'] = [] 
+    para['adjNS']['krylov_solver']['pc_type'] = 'hypre'
+    para['adjNS']['krylov_solver']['pc_hypre_type'] = 'boomeramg'
+    para['adjNS']['krylov_solver']['pc_hypre_boomeramg_coarsen_type'] = "hmis"
+    para['adjNS']['krylov_solver']["pc_hypre_boomeramg_interp_type"] = "ext+i"
+    para['adjNS']['krylov_solver']["pc_hypre_boomeramg_p_max"] = 4
+    para['adjNS']['krylov_solver']["boomeramg_agg_nl"] = 1
+
     # for advective thermal solver
     para['thermal']['general']['preconditioner'] = 'hypre_amg'
     para['thermal']['krylov_solver']['relative_tolerance'] = 1e-8
@@ -57,14 +74,6 @@ def readinSystemParameters(para, args):
     para['adjThermal']['krylov_solver']['maximum_iterations'] = 300
     para['adjThermal']['krylov_solver']['report'] = True
     para['adjThermal']['krylov_solver']['error_on_nonconvergence'] = False
-
-    # for adjoint NS solver    
-    para['adjNS']['general']['preconditioner'] = 'hypre_amg'
-    para['adjNS']['krylov_solver']['relative_tolerance'] = 1e-7
-    para['adjNS']['krylov_solver']['monitor_convergence'] = True
-    para['adjNS']['krylov_solver']['maximum_iterations'] = 500
-    para['adjNS']['krylov_solver']['report'] = True
-    para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
 
     # for shape gradient calculation
     para['SG']['general']['preconditioner'] = 'default'
