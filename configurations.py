@@ -5,26 +5,21 @@ def readinSystemParameters(para, args):
 
     readinEssentials(para, args)
 
-    # the following is about the solvers
-    sys_list = ['NS', 'adjNS', 'thermal', 'adjThermal', 'SG', 'LE'] # list of all system names
-    component_list = ['general', 'krylov_solver']
-    for sys_name in sys_list:
-        para[sys_name] = {} # initialize
-        for cpn_name in component_list:
-            para[sys_name][cpn_name] = {}
+    # readin all default paras; including all the possible systems and the associated components that needs to be configured
+    sys_list, component_list = readinDefaults(para)
+
+    # config nonlinear solver: rmturs is generally for nonlinear problems; variational should be used for debugging
+    if args.nls == "rmturs":
+        for sys_name in sys_list:
+            para[sys_name]['nls'] = "rmturs"
 
     # config linear solver: 'direct' is for debugging; 'ls' is a choice between 'direct' and 'iterative', not the actual iterative solver name (e.g. gmres)
-    if args.ls == 'direct':
+    if args.ls == 'iterative':
         for sys_name in sys_list:
-            para[sys_name]['ls'] = 'direct'
-            para[sys_name]['general']['linear_solver'] = 'mumps'
-    elif args.ls == 'iterative':
-        for sys_name in sys_list:
-            para[sys_name]['ls'] = 'iterative'
-            para[sys_name]['general']['linear_solver'] = 'gmres'
+            para[sys_name]['ls'] = "iterative"
+            para[sys_name]['general']['linear_solver'] = "gmres"
    
     # for NS solver 
-    para['NS']['nls'] = args.nls
     para['NS']['general']['relative_tolerance'] = 1e-10
     para['NS']['general']['error_on_nonconvergence'] = False
     para['NS']['general']['maximum_iterations'] = 10
@@ -37,7 +32,6 @@ def readinSystemParameters(para, args):
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
     # for adjoint NS solver
-    para['adjNS']['nls'] = args.nls
     para['adjNS']['general']['relative_tolerance'] = 1e-7
     para['adjNS']['general']['error_on_nonconvergence'] = False
     para['adjNS']['general']['maximum_iterations'] = 1
@@ -115,5 +109,17 @@ def readinEssentials(para, args):
     para['fluidMesh']['recRes'] = args.recRes
 
     return
+
+def readinDefaults(para):
+    sys_list = ['NS', 'adjNS', 'thermal', 'adjThermal', 'SG', 'LE'] # list of all system names
+    component_list = ['general', 'krylov_solver']
+    for sys_name in sys_list:
+        para[sys_name] = {} # initialize
+        para[sys_name]['nls'] = "variational"
+        para[sys_name]['ls'] = "direct"
+        for cpn_name in component_list:
+            para[sys_name][cpn_name] = {}
+            para[sys_name]['general']['linear_solver'] = 'mumps'
+    return sys_list, component_list
 
 
