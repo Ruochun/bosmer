@@ -177,12 +177,14 @@ def applyAdjNSBCs(meshData, markers):
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
     bc1 = DirichletBC(W, 300., markers, 1)
-    return [bc1]
+    bc0 = DirichletBC(W, 373., markers, 0)
+    return [bc1, bc0]
 
 def applyAdjThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
     bc1 = DirichletBC(W, 0.0, markers, 1)
-    return [bc1]
+    bc0 = DirichletBC(W, 0.0, markers, 0)
+    return [bc1, bc0]
 
 def applyShapeGradientBCs(meshData, markers):
     W = meshData['fluid']['spaceSG']

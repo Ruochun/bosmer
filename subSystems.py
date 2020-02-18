@@ -140,7 +140,7 @@ def formProblemThermal(meshData, BCs, para, Var, system):
             (1./Pe)*dot(grad(T), grad(S))
             + dot(grad(T), u_)*S
         )*dx + (
-            T*S*h_hat - S*h_hat*T_hat
+            0.#T*S*h_hat - S*h_hat*T_hat
         )*ds(0)
     F = F + F_stab
 
@@ -184,7 +184,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
             (1./Pe)*dot(grad(S), grad(T))
             + dot(grad(S), u_)*T
         )*dx + (
-            T*S*h_hat
+            0.#T*S*h_hat
         )*ds(0) + (
             para['objWeight']*S*dot(u_, flowDir)
         )*dX(90)
