@@ -32,24 +32,29 @@ def readinSystemParameters(para, args):
     para['NS']['krylov_solver']['preconditioner'] = 'default'
 
     # for adjoint NS solver
-    para['adjNS']['general']['relative_tolerance'] = 1e-7
+    para['adjNS']['general']['relative_tolerance'] = 1e-8
     para['adjNS']['general']['error_on_nonconvergence'] = False
     para['adjNS']['general']['maximum_iterations'] = 1
     para['adjNS']['krylov_solver']['ksp_type'] = 'gmres'
-    para['adjNS']['krylov_solver']["relative_tolerance"] = 1e-7
+    para['adjNS']['krylov_solver']["relative_tolerance"] = 1e-9
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
     para['adjNS']['krylov_solver']['ksp_max_it'] = 2500
     para['adjNS']['krylov_solver']['ksp_monitor'] = [] 
+    para['adjNS']['krylov_solver']['preconditioner'] = 'sor'
+    """
     para['adjNS']['krylov_solver']['pc_type'] = 'hypre'
     para['adjNS']['krylov_solver']['pc_hypre_type'] = 'boomeramg'
+    para['adjNS']['krylov_solver']['pc_hypre_boomeramg_stong_threshold'] = .7
     para['adjNS']['krylov_solver']['pc_hypre_boomeramg_coarsen_type'] = "hmis"
     para['adjNS']['krylov_solver']["pc_hypre_boomeramg_interp_type"] = "ext+i"
-    para['adjNS']['krylov_solver']["pc_hypre_boomeramg_p_max"] = 4
-    para['adjNS']['krylov_solver']["boomeramg_agg_nl"] = 1
+    #para['adjNS']['krylov_solver']["pc_hypre_boomeramg_p_max"] = 4
+    #para['adjNS']['krylov_solver']["boomeramg_agg_nl"] = 1
+    para['adjNS']['krylov_solver']["nonzero_initial_guess"] = True
+    """
 
     # for advective thermal solver
     para['thermal']['general']['preconditioner'] = 'hypre_amg'
-    para['thermal']['krylov_solver']['relative_tolerance'] = 1e-8
+    para['thermal']['krylov_solver']['relative_tolerance'] = 1e-12
     #para['thermal']['krylov_solver']['monitor_convergence'] = True
     para['thermal']['krylov_solver']['maximum_iterations'] = 300
     para['thermal']['krylov_solver']['report'] = True
@@ -63,7 +68,7 @@ def readinSystemParameters(para, args):
 
     # for adjoint advective thermal solver
     para['adjThermal']['general']['preconditioner'] = 'hypre_amg'
-    para['adjThermal']['krylov_solver']['relative_tolerance'] = 1e-8
+    para['adjThermal']['krylov_solver']['relative_tolerance'] = 1e-12
     #para['adjThermal']['krylov_solver']['monitor_convergence'] = True
     para['adjThermal']['krylov_solver']['maximum_iterations'] = 300
     para['adjThermal']['krylov_solver']['report'] = True
@@ -71,7 +76,7 @@ def readinSystemParameters(para, args):
 
     # for shape gradient calculation
     para['SG']['general']['preconditioner'] = 'default'
-    para['SG']['krylov_solver']['relative_tolerance'] = 1e-8
+    para['SG']['krylov_solver']['relative_tolerance'] = 1e-12
     #para['SG']['krylov_solver']['monitor_convergence'] = True
     para['SG']['krylov_solver']['maximum_iterations'] = 300
     para['SG']['krylov_solver']['report'] = True
@@ -79,7 +84,7 @@ def readinSystemParameters(para, args):
 
     # for linear elasticity mesh motion 
     para['LE']['general']['preconditioner'] = 'default'
-    para['LE']['krylov_solver']['relative_tolerance'] = 1e-8
+    para['LE']['krylov_solver']['relative_tolerance'] = 1e-12
     #para['LE']['krylov_solver']['monitor_convergence'] = True
     para['LE']['krylov_solver']['maximum_iterations'] = 300
     para['LE']['krylov_solver']['report'] = True

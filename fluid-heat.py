@@ -266,6 +266,8 @@ for iterNo in range(systemPara['maxIter']):
     outputData['objDissp'].append(objDissp)
     outputData['objVol'].append(objVol)
 
+    SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))  
+    funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
     if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
@@ -275,18 +277,16 @@ for iterNo in range(systemPara['maxIter']):
         adj_p_out.rename("adj_p", "adj_p")
         funcVar['fluid']['T'].rename("T", "T")
         funcVar['fluid']['T_prime'].rename("adj_T", "adj_T")
-        #funcVar['fluid']['v'].rename("sg", "sg")
+        funcVar['fluid']['modified_v'].rename("sg", "sg")
         uFile << (u_out, iterNo)
         pFile << (p_out, iterNo)
         adj_uFile << (adj_u_out, iterNo)
         adj_pFile << (adj_p_out, iterNo)
         tFile << (funcVar['fluid']['T'], iterNo)
         adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
-        #vFile << (funcVar['fluid']['v'], iterNo)
+        vFile << (funcVar['fluid']['modified_v'], iterNo)
 
     # now move the mesh and remesh (if needed)
-    SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))
-    funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
     info("===== Mesh movement ======")
     solverLE.solve()
     ALE.move(mesh, funcVar['fluid']['w'])

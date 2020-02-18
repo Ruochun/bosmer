@@ -113,7 +113,7 @@ def markSubDomains(mesh):
 def markBoundaries(mesh):
     totLen = 14.
     height = 1.
-    width = 1.
+    width = .8
     incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
