@@ -38,9 +38,10 @@ def readinSystemParameters(para, args):
     para['adjNS']['krylov_solver']['ksp_type'] = 'gmres'
     para['adjNS']['krylov_solver']["relative_tolerance"] = 1e-9
     para['adjNS']['krylov_solver']['error_on_nonconvergence'] = False
-    para['adjNS']['krylov_solver']['ksp_max_it'] = 2500
+    para['adjNS']['krylov_solver']['ksp_max_it'] = 2000
+    para['adjNS']['krylov_solver']['ksp_gmres_restart'] = 500
     para['adjNS']['krylov_solver']['ksp_monitor'] = [] 
-    para['adjNS']['krylov_solver']['preconditioner'] = 'sor'
+    para['adjNS']['krylov_solver']['preconditioner'] = 'default'
     """
     para['adjNS']['krylov_solver']['pc_type'] = 'hypre'
     para['adjNS']['krylov_solver']['pc_hypre_type'] = 'boomeramg'
