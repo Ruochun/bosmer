@@ -4,7 +4,7 @@ from mshr import *
 import numpy as np
 import os
 
-def sampleMesh(system, msh_name, res=200):
+def sampleMesh(system, msh_name, res=50):
     ref_num_cells = system['fluidMesh']['recRes']
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
@@ -106,14 +106,14 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>13.) 
+            return not(on_boundary) and (x[0]>29.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 14.
+    totLen = 32.
     height = 1.
-    width = .8
+    width = 1.6
     incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
@@ -138,9 +138,9 @@ def markBoundaries(mesh):
             return on_boundary and x[2]>height-eps
 
     solidWall().mark(boundary, 0)
-    in_outRamp().mark(boundary, 10)
+    #in_outRamp().mark(boundary, 10)
     slipWally().mark(boundary, 90)
-    slipWallz().mark(boundary, 91)
+    #slipWallz().mark(boundary, 91)
     inflow().mark(boundary, 1)
     outflow().mark(boundary, 2)
     return boundary    
@@ -156,10 +156,10 @@ def applyNSBCs(meshData, markers):
         inflow = Expression(('u_in', '0.0', '0.0'), u_in=u0, degree=2)
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
-    bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
+    #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc10, bc90, bc91] # top is ?
+    #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
+    return [bc0, bc1] # top is ?
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -169,10 +169,10 @@ def applyAdjNSBCs(meshData, markers):
         noslip = Constant((0., 0., 0.))
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
-    bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
+    #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
-    bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc10, bc90, bc91] # top is ?
+    #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
+    return [bc0, bc1] # top is ?
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
@@ -194,10 +194,10 @@ def applyShapeGradientBCs(meshData, markers):
         noslip = Constant((0., 0., 0.))
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     bc2 = DirichletBC(W.sub(0), noslip, markers, 2)
-    bc10 = DirichletBC(W.sub(0), noslip, markers, 10)
+    #bc10 = DirichletBC(W.sub(0), noslip, markers, 10)
     bc90 = DirichletBC(W.sub(0), noslip, markers, 90)
-    bc91 = DirichletBC(W.sub(0), noslip, markers, 91)
-    return [bc1, bc2, bc10, bc90, bc91] 
+    #bc91 = DirichletBC(W.sub(0), noslip, markers, 91)
+    return [bc1, bc2, bc90] 
 
 def applyLinearElasticityBCs(meshData, markers, Var, para):
     alpha = para['stepLen']
@@ -210,10 +210,10 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
     bc0 = DirichletBC(W, v, markers, 0)
     bc1 = DirichletBC(W, noslip, markers, 1)
     bc2 = DirichletBC(W, noslip, markers, 2)   
-    bc10 = DirichletBC(W, noslip, markers, 10)
+    #bc10 = DirichletBC(W, noslip, markers, 10)
     bc90 = DirichletBC(W, noslip, markers, 90)
-    bc91 = DirichletBC(W, noslip, markers, 91)
-    return [bc0, bc1, bc2, bc10, bc90, bc91] 
+    #bc91 = DirichletBC(W, noslip, markers, 91)
+    return [bc0, bc1, bc2, bc90] 
 
 
 ### remeshing utilities

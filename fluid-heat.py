@@ -76,6 +76,7 @@ systemPara['fluidMesh'] = {}
 outputData['objHeat'] = []
 outputData['objDissp'] = [] 
 outputData['objVol'] = []
+outputData['avgTemp'] = []
 # we don't currently have a solid system
 
 
@@ -173,13 +174,14 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8)
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.6)
         else:
             pbc = None
+        Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
         Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
-        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec1, Sca1]), constrained_domain=pbc)
+        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
         meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
         meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
         meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1) # LE=LinearElasticity, used for mesh moving
@@ -206,7 +208,7 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara, 'NS')
-        solverAdjNS = sS.formSolverNonLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') 
         solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara, 'thermal')
         solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara, 'adjThermal')
 
@@ -261,10 +263,11 @@ for iterNo in range(systemPara['maxIter']):
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
 
-    (objHeat, objDissp, objVol) = sS.computeObj(meshData, physicalPara, funcVar)
+    (objHeat, objDissp, objVol, avgTemp) = sS.computeObj(meshData, physicalPara, funcVar)
     outputData['objHeat'].append(objHeat)
     outputData['objDissp'].append(objDissp)
     outputData['objVol'].append(objVol)
+    outputData['avgTemp'].append(avgTemp)
 
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))  
     funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
@@ -290,6 +293,8 @@ for iterNo in range(systemPara['maxIter']):
     info("===== Mesh movement ======")
     solverLE.solve()
     ALE.move(mesh, funcVar['fluid']['w'])
+    #mesh.smooth_boundary(20, True)
+    #mesh.smooth(20)
 
     if (iterNo+1) % systemPara['ts_per_rm']==0:
         meshData['fluid']['bndExPts'] = mU.getSeedPtsFromVertices(meshData, 'fluid')
@@ -318,6 +323,9 @@ print("    ")
 print("objDissp= ", outputData['objDissp']) 
 print("    ")
 print("objVol= ", outputData['objVol'])
+print("    ")
+print("avgTemp= ", outputData['avgTemp'])
+print("    ") 
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)
 
