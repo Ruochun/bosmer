@@ -55,7 +55,7 @@ def formProblemNS(meshData, BCs, para, Var, system):
             #2.*nu*inner(grad(u), grad(v))
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
-    #F = F + F_stab
+    F = F + F_stab
     J = derivative(F, w)
     if solver_type == "rmturs":
         assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
@@ -101,7 +101,7 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
         )*dx + (
             para['objWeight']*dot(v, flowDir)*T_  # a term originated from including flow dir in the obj
         )*dX(90)
-    #F = F + F_stab
+    F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, w)
@@ -144,7 +144,7 @@ def formProblemThermal(meshData, BCs, para, Var, system):
         )*dx + (
             0.#T*S*h_hat - S*h_hat*T_hat
         )*ds(0)
-    #F = F + F_stab
+    F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, T)
@@ -190,7 +190,7 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         )*ds(0) + (
             para['objWeight']*S*dot(u_, flowDir)
         )*dX(90)
-    #F = F + F_stab
+    F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, T)
@@ -266,7 +266,6 @@ def formSolverNonLinearProblem(problem, para, sys_name):
 
 def formSolverLinearProblem(problem, para, sys_name):
     solver = LinearVariationalSolver(problem)
-    """
     for component in para[sys_name]: # components typically include a 'general'(high-level) block and a 'krylov_solver'(linear solver specs) block
         if not(isinstance(para[sys_name][component], dict)):
             continue
@@ -277,7 +276,6 @@ def formSolverLinearProblem(problem, para, sys_name):
         else:
             for option in para[sys_name][component]:
                 solver.parameters[component][option] = para[sys_name][component][option]
-    """
     #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 

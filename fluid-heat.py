@@ -174,14 +174,15 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.6)
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8, map_tol=1e-6)
+            print(pbc.map_tolerance)
         else:
             pbc = None
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
         Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
-        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec1, Sca1]), constrained_domain=pbc)
         meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
         meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
         meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1) # LE=LinearElasticity, used for mesh moving
@@ -208,7 +209,7 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara, 'NS')
-        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        solverAdjNS = sS.formSolverNonLinearProblem(problemAdjNS, systemPara, 'adjNS') 
         solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara, 'thermal')
         solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara, 'adjThermal')
 
