@@ -106,14 +106,14 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>29.) 
+            return not(on_boundary) and (x[0]>25.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 32.
+    totLen = 28.
     height = 1.
-    width = 1.6
+    width = .8
     incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)

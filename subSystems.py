@@ -23,15 +23,18 @@ def flowDirection(u):
 def computeObj(meshData, para, Var):
     dx = meshData['fluid']['dx']
     dX = meshData['fluid']['dX']
+    ds = meshData['fluid']['ds']
+    n = meshData['fluid']['n']
     T = Var['fluid']['T']
     (u, _) = split(Var['fluid']['up'])
+    (sg, _) = split(Var['fluid']['v'])
     flowDir = flowDirection(u)
     M1 = para['objWeight']*(-T)*dot(u, flowDir)*dX(90) # heat obj
-    M_T = T*dX(90)
-    #M1 = para['objWeight']*(-T)*dX(90)
     M2 = inner(grad(u), grad(u))*dx # dissp obj
     M3 = Constant(1.)*dx # volume obj
-    return assemble(M1), assemble(M2), assemble(M3)-meshData['fluid']['volCons'], assemble(M_T)/assemble(Constant(1.)*dX(90))
+    M4 = T*dX(90) # temperature near outlet
+    M5 = sqrt(dot(sg, sg))*ds(0)
+    return assemble(M1), assemble(M2), assemble(M3)-meshData['fluid']['volCons'], assemble(M4)/assemble(Constant(1.)*dX(90)), assemble(M5)
 
 def formProblemNS(meshData, BCs, para, Var, system):
     solver_type = system['NS']['nls']

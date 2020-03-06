@@ -77,6 +77,7 @@ outputData['objHeat'] = []
 outputData['objDissp'] = [] 
 outputData['objVol'] = []
 outputData['avgTemp'] = []
+outputData['totSG'] = []
 # we don't currently have a solid system
 
 
@@ -174,7 +175,7 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.6)
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8)
         else:
             pbc = None
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
@@ -263,11 +264,12 @@ for iterNo in range(systemPara['maxIter']):
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
 
-    (objHeat, objDissp, objVol, avgTemp) = sS.computeObj(meshData, physicalPara, funcVar)
+    (objHeat, objDissp, objVol, avgTemp, totSG) = sS.computeObj(meshData, physicalPara, funcVar)
     outputData['objHeat'].append(objHeat)
     outputData['objDissp'].append(objDissp)
     outputData['objVol'].append(objVol)
     outputData['avgTemp'].append(avgTemp)
+    outputData['totSG'].append(totSG)
 
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))  
     funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
@@ -326,6 +328,8 @@ print("objVol= ", outputData['objVol'])
 print("    ")
 print("avgTemp= ", outputData['avgTemp'])
 print("    ") 
+print("totSG= ", outputData['totSG'])
+print("    ")
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)
 
