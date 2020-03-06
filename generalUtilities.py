@@ -36,12 +36,16 @@ class yPeriodic3D(SubDomain):
         y[1] = x[1] - self.shift_dist
         y[2] = x[2]
 
-def explicitAppendSide(loop, start, dirVec, L, res):
+def explicitAppendSide(loop, start, dirVec, L, res, incFirst=True):
     x = start[0]
     y = start[1]
     x_incre = dirVec[0]*L/res
     y_incre = dirVec[1]*L/res
-    for i in range(0,res+1):
+    if incFirst:
+        s = 0
+    else:
+        s = 1
+    for i in range(s,res+1):
         loop.append(Point(x+i*x_incre, y+i*y_incre))
     return 0
 

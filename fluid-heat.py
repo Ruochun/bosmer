@@ -77,6 +77,7 @@ outputData['objHeat'] = []
 outputData['objDissp'] = [] 
 outputData['objVol'] = []
 outputData['avgTemp'] = []
+outputData['totSG'] = []
 # we don't currently have a solid system
 
 
@@ -102,7 +103,12 @@ else:
             mesh = None
             info("This mesh is not valid to read in.")
     meshData['fluid']['bndExPts'] = []
-    meshData['fluid']['boundIdx'] = []
+    meshData['fluid']['bndExPts'].extend([0.0,0.0])
+    for i in range(20):
+        pos_x = .8*i + 8.
+        pos_y = .8*((i+1)%2) + .25
+        meshData['fluid']['bndExPts'].extend([pos_x+.4,pos_y])
+    meshData['fluid']['boundIdx'] = [0]
 
     for i in range(args.level):
         mesh = refine(mesh)
@@ -136,12 +142,19 @@ vFile = File(args.out_folder+"/shape_gradient.pvd")
 
 #info("Courant number: Co = %g ~ %g" % (u0*args.dt/mesh.hmax(), u0*args.dt/mesh.hmin()))
 if args.immediate_remesh:
+    try: 
+        meshData['fluid']['bndVIDs'] = mU.getSeedVerticesFromPts(meshData, 'fluid')
+    except:
+        meshData['fluid']['bndVIDs'] = []
+        info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
+    meshData['fluid']['bndExPts'] = mU.getSeedPtsFromVertices(meshData, 'fluid')
     meshData['fluid']['mesh'] = mU.createMeshViaTriangle(meshData, 'fluid', systemPara)
     mesh = meshData['fluid']['mesh']
     assert mesh is not None
 ##################################
 ####         MAIN PART        ####
 ##################################
+step_scale = 1
 
 for iterNo in range(systemPara['maxIter']):
 
@@ -174,7 +187,7 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
 
         if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.6)
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.0)
         else:
             pbc = None
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
@@ -224,9 +237,9 @@ for iterNo in range(systemPara['maxIter']):
         info('****************************************')
     ########### End of mesh setup and problem definition ###############
 
-    if (iterNo+1) % systemPara['ts_per_out']==0:
-        meshFile << (mesh, iterNo)
-        bndFile << (boundary_markers, iterNo)
+    #if (iterNo+1) % systemPara['ts_per_out']==0:
+    #    meshFile << (mesh, iterNo)
+    #    bndFile << (boundary_markers, iterNo)
     ########### Begining solving systems ###############################
     info('------------------------------')
     info("Begining to solve systems...")
@@ -263,14 +276,17 @@ for iterNo in range(systemPara['maxIter']):
     #krylov_iters += solver.krylov_iterations()
     solution_time += t_solve.stop()
 
-    (objHeat, objDissp, objVol, avgTemp) = sS.computeObj(meshData, physicalPara, funcVar)
+    (objHeat, objDissp, objVol, avgTemp, totSG) = sS.computeObj(meshData, physicalPara, funcVar)
     outputData['objHeat'].append(objHeat)
     outputData['objDissp'].append(objDissp)
     outputData['objVol'].append(objVol)
     outputData['avgTemp'].append(avgTemp)
+    outputData['totSG'].append(totSG)
 
     SG2LEAssigner.assign(funcVar['fluid']['modified_v'], funcVar['fluid']['v'].sub(0))  
-    funcVar['fluid']['modified_v'].vector()[:] = physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
+    if (iterNo+1)%50==0:
+        step_scale += 1
+    funcVar['fluid']['modified_v'].vector()[:] = step_scale*physicalPara['stepLen']*funcVar['fluid']['modified_v'].vector()[:]
     if (iterNo+1) % systemPara['ts_per_out']==0:
         u_out, p_out = funcVar['fluid']['up'].split()
         adj_u_out, adj_p_out = funcVar['fluid']['up_prime'].split()
@@ -325,6 +341,8 @@ print("    ")
 print("objVol= ", outputData['objVol'])
 print("    ")
 print("avgTemp= ", outputData['avgTemp'])
+print("    ")
+print("totSG= ", outputData['totSG'])
 print("    ") 
 #with open("table_pcdr_{}.txt".format(args.pcd_variant), "w") as f:
 #    f.write(tab)

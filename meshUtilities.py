@@ -4,14 +4,15 @@ from mshr import *
 import numpy as np
 import os
 
-def sampleMesh(system, msh_name, res=50):
+def sampleMesh(system, msh_name, res=15):
     ref_num_cells = system['fluidMesh']['recRes']
     bnd_pts = [] # example boundary points
     bounding_idx = [] # indices for those loops who are bounding loop(s), not hole loops
     if msh_name == "FINS":
         box = []
-        gU.explicitAppendSide(box, (0.,0.), (1.,0.), 32., res)
-        gU.explicitAppendSide(box, (32.,1.6), (-1.,0.), 32., res)
+        box_res = 50
+        gU.explicitAppendSide(box, (0.,0.), (1.,0.), 32., box_res)
+        gU.explicitAppendSide(box, (32.,1.6), (-1.,0.), 32., box_res)
         box.append(Point(0.,0.))
         domain_r = Polygon(box)
         bnd_pts.extend([0.,0.])
@@ -19,7 +20,19 @@ def sampleMesh(system, msh_name, res=50):
         for i in range(20):
             pos_x = .8*i + 8.
             pos_y = .8*((i+1)%2) + .25
-            domain_r = domain_r - Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
+            fillet_r = 0.02
+            fin = Rectangle(Point(pos_x, pos_y), Point(pos_x+.8, pos_y+.3))
+            #fin = fin - Polygon([Point(pos_x,pos_y), Point(pos_x+fillet_r,pos_y), Point(pos_x,pos_y+fillet_r)])
+            #fin = fin - Polygon([Point(pos_x+.8,pos_y), Point(pos_x+.8,pos_y+fillet_r), Point(pos_x+.8-fillet_r,pos_y)])
+            #fin = fin - Polygon([Point(pos_x+.8,pos_y+.3), Point(pos_x+.8-fillet_r,pos_y+.3), Point(pos_x+.8,pos_y+.3-fillet_r)])
+            #fin = fin - Polygon([Point(pos_x,pos_y+.3), Point(pos_x,pos_y+.3-fillet_r), Point(pos_x+fillet_r,pos_y+.3)])
+            #fin = []
+            #fin_res = 1
+            #gU.explicitAppendSide(fin, (pos_x+fillet_r,pos_y), (1.,0.), .8-2*fillet_r, fin_res)
+            #gU.explicitAppendSide(fin, (pos_x+.8,pos_y+fillet_r), (0.,1.), .3-2*fillet_r, fin_res)
+            #gU.explicitAppendSide(fin, (pos_x+.8-fillet_r,pos_y+.3), (-1.,0.), .8-2*fillet_r, fin_res)
+            #gU.explicitAppendSide(fin, (pos_x,pos_y+.3-fillet_r), (0.,-1.), .3-2*fillet_r, fin_res)
+            domain_r = domain_r - fin
             bnd_pts.extend([pos_x+.4,pos_y])
     elif msh_name == "CIRCLES":
         radii = .15
@@ -49,14 +62,18 @@ def sampleMesh(system, msh_name, res=50):
             cx = .7*i + 28./4
             domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
             bnd_pts.extend([cx,cy+side/2])
-    elif msh_name == "3_FINS":
-        domain_r = Rectangle(Point(0.,0.), Point(5.,1.))
+    elif msh_name == "1_CIRCLE":
+        radii = .3  
+        box = []
+        box_res = 25
+        gU.explicitAppendSide(box, (0.,0.), (1.,0.), 8., box_res)                                                                                         
+        gU.explicitAppendSide(box, (8.,1.), (-1.,0.), 8., box_res)
+        box.append(Point(0.,0.))
+        domain_r = Polygon(box)
         bnd_pts.extend([0.,0.])
         bounding_idx.append(0)
-        domain_r = (domain_r - Rectangle(Point(1.,4./6.), Point(2.,5./6.))
-                             - Rectangle(Point(2.,1./6.), Point(3.,2./6.))
-                             - Rectangle(Point(3.,4./6.), Point(4.,5./6.)))
-        bnd_pts.extend([1.,4./6.,2.,1./6.,3.,4./6.])
+        domain_r = (domain_r - Circle(Point(2.,.5), radii, 32))
+        bnd_pts.extend([2.,.5+radii])
     elif msh_name == "3D_3cyl":
         scale = 10.
         radii = scale*.025
@@ -106,14 +123,14 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>29.) 
+            return not(on_boundary) and (x[0]>7.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 32.
+    totLen = 8.
     height = 1.
-    width = 1.6
+    width = 1.
     incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
