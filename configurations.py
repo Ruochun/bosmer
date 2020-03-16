@@ -113,6 +113,7 @@ def readinEssentials(para, args):
     para['maxIter'] = args.max_iter
     para['ts_per_out'] = args.ts_per_out
     para['fluidMesh']['recRes'] = args.recRes
+    para['fluidMesh']['stiffening_scale'] = args.stiffening_scale
 
     return
 

@@ -3,6 +3,7 @@ import generalUtilities as gU
 from mshr import *
 import numpy as np
 import os
+import scipy.interpolate as SPI
 
 def sampleMesh(system, msh_name, res=50):
     ref_num_cells = system['fluidMesh']['recRes']
@@ -215,6 +216,29 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
     bc91 = DirichletBC(W, noslip, markers, 91)
     return [bc0, bc1, bc10, bc2, bc90, bc91] 
 
+
+### about stiffening
+
+def getStiffeningScale(Var, meshData, use_stiffening, iterNo):
+    mesh = meshData['fluid']['mesh']
+    V = meshData['fluid']['spaceStiff']
+    if not(use_stiffening):
+        if (iterNo+1)==1:
+            Var['fluid']['meshStiffness'].interpolate(Constant(1.0))
+    elif (iterNo+1)==1:
+        centers = []
+        rad = []
+        for cell in cells(mesh):
+            centers.append(np.average(np.array(cell.get_vertex_coordinates()).reshape((-1,3)), axis=0))
+            rad.append(cell.inradius())
+        coord = np.array(centers)
+        values = np.array(rad)
+        interpolant = SPI.LinearNDInterpolator(coord, values, fill_value=np.mean(values))
+        nodal = interpolant(mesh.coordinates())
+        Var['fluid']['meshStiffness'].vector()[:] = np.divide(1.0, np.power(nodal[dof_to_vertex_map(V)], 3))
+        del centers, rad, coord, values, nodal
+
+    return 0
 
 ### remeshing utilities
 

@@ -5,8 +5,8 @@ from mpi4py import MPI as pmp
 def epsilon(u):
     return 0.5*(grad(u) + grad(u).T)
 
-def sigma(u):
-    E = 1.
+def sigma(E, u):
+    #E = 1.
     nu = .3
     mu = E/(2.*(1.+nu))
     lam = E*nu/((1.+nu)*(1.-2.*nu))
@@ -227,13 +227,14 @@ def formProblemShapeGradient(meshData, BCs, para, Var, system):
 def formProblemLinearElasticity(meshData, BCs, para, Var, system):
     dx = meshData['fluid']['dx']
     V = meshData['fluid']['spaceLE']
+    E = Var['fluid']['meshStiffness']
     if V.mesh().topology().dim() == 2:
         zeros = Constant((0., 0.))
     elif V.mesh().topology().dim() == 3:
         zeros = Constant((0., 0., 0.))
     u = TrialFunction(V)
     v = TestFunction(V)
-    a = inner(sigma(u), grad(v))*dx
+    a = inner(sigma(E, u), grad(v))*dx
     L = inner(zeros, v)*dx
     problem = LinearVariationalProblem(a, L, Var['fluid']['w'], BCs['fluid']['LE'])
     return problem
