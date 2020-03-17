@@ -295,10 +295,10 @@ for iterNo in range(systemPara['maxIter']):
         funcVar['fluid']['modified_v'].rename("sg", "sg")
         uFile << (u_out, iterNo)
         pFile << (p_out, iterNo)
-        adj_uFile << (adj_u_out, iterNo)
-        adj_pFile << (adj_p_out, iterNo)
+        #adj_uFile << (adj_u_out, iterNo)
+        #adj_pFile << (adj_p_out, iterNo)
         tFile << (funcVar['fluid']['T'], iterNo)
-        adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
+        #adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
         vFile << (funcVar['fluid']['modified_v'], iterNo)
 
     # now move the mesh and remesh (if needed)

@@ -235,7 +235,7 @@ def getStiffeningScale(Var, meshData, use_stiffening, iterNo):
         values = np.array(rad)
         interpolant = SPI.LinearNDInterpolator(coord, values, fill_value=np.mean(values))
         nodal = interpolant(mesh.coordinates())
-        Var['fluid']['meshStiffness'].vector()[:] = np.divide(1.0, np.power(nodal[dof_to_vertex_map(V)], 3))
+        Var['fluid']['meshStiffness'].vector()[:] = np.divide(1.0, np.power(nodal[dof_to_vertex_map(V)], 4))
         del centers, rad, coord, values, nodal
 
     return 0
