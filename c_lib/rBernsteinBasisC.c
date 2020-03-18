@@ -128,21 +128,21 @@ int BernsteinBasis0(int n, double *uuu, double *wt, double *N, double *dNx, doub
 
 
 /* Main */
-double **shapeFunc2(	int n, //degree
-						double *uuu, //parametric t
-						double *wt) //weights
+int shapeFunc2(	int n, //degree
+				double *uuu, //parametric t
+				double *wt, //weights
+                double *result)
 {
     /*Output data*/
-    int num = (n+1)*(n+2)/2;
-    double *N = malloc(num*sizeof(double));
-	double *dNx = malloc(num*sizeof(double));
-	double *dNy = malloc(num*sizeof(double));
-	double *ddNx = malloc(num*sizeof(double));
-	double *ddNy = malloc(num*sizeof(double));
-	double *ddNxy = malloc(num*sizeof(double));
+    const int num = (n+1)*(n+2)/2;
+    double *N = result;
+	double *dNx = result+num;
+	double *dNy = result+2*num;
+	double *ddNx = result+3*num;
+	double *ddNy = result+4*num;
+	double *ddNxy = result+5*num;
 
     BernsteinBasis0(n, uuu, wt, N, dNx, dNy, ddNx, ddNy, ddNxy);
-	double **result = {&N, &dNx, &dNy, &ddNx, &ddNy, &ddNxy};
-	return result;
+	return 0;
    
 }

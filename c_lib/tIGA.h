@@ -1,5 +1,5 @@
 double factorial0(int n);
-double **shapeFunc2(int n, double *uuu, double *wt);
+int shapeFunc2(int n, double *uuu, double *wt, double *result);
 
 /*
  a bit info on how to compile: https://www.csestack.org/calling-c-functions-from-python/
