@@ -37,7 +37,7 @@ print(list_krylov_solver_preconditioners())
 print(PETSc.Options().getAll())
 
 mesh =  UnitSquareMesh(30,30)
-#File("./mesh/mesh.pvd") << mesh
+File("./mesh/mesh.pvd") << mesh
 BezElem = [[1,2,3,5,6,9],[7,8,9,4,5,1]]
 BezElem = np.array(BezElem)
 BezElem = BezElem - 1
@@ -99,6 +99,10 @@ for point in mesh.coordinates():
 
 #print(T)
 
+# now move the tIGA mesh a bit
+abit = .1
+BezPnt = np.array([[0.0,0.0],[.5,0.0+abit],[1.0,0.],[0.,.5],[.5,.5],[1.-abit,.5],[0.,1.],[.5,1.],[1.,1.]])
+
 # now reproduce the mesh
 new_coord = np.zeros((len(mesh.coordinates()),2))
 i = 0
@@ -108,8 +112,10 @@ for t in T:
     pos = pts.transpose() @ NN[0,:]
     new_coord[i,:]=pos
     i+=1
-print(new_coord)
+#print(new_coord)
 
+mesh.coordinates()[:] = new_coord
+File("./mesh/new_mesh.pvd") << mesh
 """
 mesh = Mesh("10cyl.xml")
 #mesh =  BoxMesh(Point(0,0,0),Point(1,1,1),2,1,1)
