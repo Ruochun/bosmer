@@ -3,6 +3,7 @@ from petsc4py import PETSc
 from mshr import *
 import scipy.interpolate as SPI 
 import scipy.spatial as SPS
+import scipy.io as IO
 import numpy as np
 from ctypes import *
 
@@ -33,20 +34,35 @@ class ExpressionFromScipyFunction(Expression):
         print(x)
         values[:] = self._f(*x)
 
-print(list_krylov_solver_preconditioners())
-print(PETSc.Options().getAll())
+# this is matlab crossover test
+splineMesh = {}
+bzMesh = IO.loadmat('one_fin.mat')
+#print(bzMesh)
+BezElem = bzMesh['elemNode']
+BezPnt = bzMesh['cp']
+#print(BezElem)
+#print(BezPnt)
 
-mesh =  UnitSquareMesh(30,30)
+
+# this is bezier mapping test script
+
+#print(list_krylov_solver_preconditioners())
+#print(PETSc.Options().getAll())
+
+domain_r = Rectangle(Point(0.,0.), Point(5.,1.))
+domain_r -= Rectangle(Point(1.,1./3.), Point(2.,2./3.))
+mesh = generate_mesh(domain_r, 50)
 File("./mesh/mesh.pvd") << mesh
-BezElem = [[1,2,3,5,6,9],[7,8,9,4,5,1]]
-BezElem = np.array(BezElem)
+#BezElem = [[1,2,3,5,6,9],[7,8,9,4,5,1]]
+#BezElem = np.array(BezElem)
 BezElem = BezElem - 1
-BezPnt = [[0.0,0.0],[.5,0.0],[1.0,0.],[0.,.5],[.5,.5],[1.,.5],[0.,1.],[.5,1.],[1.,1.]]
-BezPnt = np.array(BezPnt)
+#BezPnt = [[0.0,0.0],[.5,0.0],[1.0,0.],[0.,.5],[.5,.5],[1.,.5],[0.,1.],[.5,1.],[1.,1.]]
+#BezPnt = np.array(BezPnt)
 hulls = []
 for Elem in BezElem:
+    #print(Elem)
     #print(BezPnt[Elem,:])
-    hulls.append(SPS.ConvexHull(BezPnt[Elem,:]))
+    hulls.append(SPS.ConvexHull(BezPnt[Elem,:-2])) # 2 dimensional convex hulls
 
 hull_number = []
 for point in mesh.coordinates():
@@ -68,7 +84,7 @@ NN = np.zeros((6,6))
 i = 0
 for point in mesh.coordinates():
     t0, t1 = 0.3, 0.3
-    pts = BezPnt[BezElem[hull_number[i]],:]
+    pts = BezPnt[BezElem[hull_number[i]],:-2]
     #print("point=",point)
     for j in range(30):
         #print("t=",np.array([t0,t1,1.0-t0-t1]))
@@ -100,14 +116,16 @@ for point in mesh.coordinates():
 #print(T)
 
 # now move the tIGA mesh a bit
-abit = .1
-BezPnt = np.array([[0.0,0.0],[.5,0.0+abit],[1.0,0.],[0.,.5],[.5,.5],[1.-abit,.5],[0.,1.],[.5,1.],[1.,1.]])
+#abit = .1
+#BezPnt = np.array([[0.0,0.0],[.5,0.0+abit],[1.0,0.],[0.,.5],[.5,.5],[1.-abit,.5],[0.,1.],[.5,1.],[1.,1.]])
+bzMesh = IO.loadmat('moved_one_fin.mat')
+BezPnt = bzMesh['cp']
 
 # now reproduce the mesh
 new_coord = np.zeros((len(mesh.coordinates()),2))
 i = 0
 for t in T:
-    pts = BezPnt[BezElem[hull_number[i]],:]
+    pts = BezPnt[BezElem[hull_number[i]],:-2]
     libTIGA.shapeFunc2(2, np.array([t[0],t[1],1.0-t[0]-t[1]]), weights, NN)
     pos = pts.transpose() @ NN[0,:]
     new_coord[i,:]=pos
@@ -116,6 +134,8 @@ for t in T:
 
 mesh.coordinates()[:] = new_coord
 File("./mesh/new_mesh.pvd") << mesh
+
+# this is stiffening test script
 """
 mesh = Mesh("10cyl.xml")
 #mesh =  BoxMesh(Point(0,0,0),Point(1,1,1),2,1,1)
