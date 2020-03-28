@@ -6,6 +6,7 @@ import numpy as np
 import meshUtilities as mU
 import generalUtilities as gU
 import subSystems as sS
+import bezierUtilities as bU
 import configurations as conf
 
 from mpi4py import MPI as pmp
@@ -48,6 +49,10 @@ parser.add_argument("--periodic", type=str, dest="periodic", default="none", cho
                     help="instruct the code to construct periodic function space w.r.t. a certain direction, for example, you can supply \'y\' as the parameter")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
                     help="volume constraint, supply a number, or a number and a \'*\' in the end allowing the initial domain to expand that many times larger (or smaller)")
+parser.add_argument("--use_tiga", dest="use_tiga", action='store_true',
+                    help="instruct the code to use tIGA mesh to control the geometry movement")
+parser.add_argument("--tiga_mesh", type=str, dest="tiga_mesh_file", default="one_fin.mat",
+                    help="path and file name of the tIGA mesh, if use tIGA motion then this must be supplimented")
 args = parser.parse_args(sys.argv[1:])
 
 parameters["form_compiler"]["quadrature_degree"] = 3
@@ -173,6 +178,9 @@ for iterNo in range(systemPara['maxIter']):
         except:
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
+        if args.use_tiga:
+            meshData['fluid']['bzMesh'] = bU.loadMatlabBezierMesh(args)
+            meshData['fluid']['mapBzLag'] = bU.formMapBezier2Lagrangian(meshData['fluid']['bzMesh'], mesh, meshData['fluid']['topoDim'])
 
         if args.periodic != "none":
             pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8)
