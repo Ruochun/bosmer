@@ -114,7 +114,7 @@ for point in mesh.coordinates():
     i += 1
 
 #print(T)
-
+"""
 # now move the tIGA mesh a bit
 #abit = .1
 #BezPnt = np.array([[0.0,0.0],[.5,0.0+abit],[1.0,0.],[0.,.5],[.5,.5],[1.-abit,.5],[0.,1.],[.5,1.],[1.,1.]])
@@ -134,6 +134,7 @@ for t in T:
 
 mesh.coordinates()[:] = new_coord
 File("./mesh/new_mesh.pvd") << mesh
+"""
 
 # this is stiffening test script
 """

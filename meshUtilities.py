@@ -49,14 +49,12 @@ def sampleMesh(system, msh_name, res=50):
             cx = .7*i + 28./4
             domain_r = domain_r - Rectangle(Point(cx-side/2, cy-side/2), Point(cx+side/2, cy+side/2))
             bnd_pts.extend([cx,cy+side/2])
-    elif msh_name == "3_FINS":
+    elif msh_name == "1_FIN":
         domain_r = Rectangle(Point(0.,0.), Point(5.,1.))
         bnd_pts.extend([0.,0.])
         bounding_idx.append(0)
-        domain_r = (domain_r - Rectangle(Point(1.,4./6.), Point(2.,5./6.))
-                             - Rectangle(Point(2.,1./6.), Point(3.,2./6.))
-                             - Rectangle(Point(3.,4./6.), Point(4.,5./6.)))
-        bnd_pts.extend([1.,4./6.,2.,1./6.,3.,4./6.])
+        domain_r = domain_r - Rectangle(Point(1.,1./3.), Point(2.,2./3.))
+        bnd_pts.extend([1.5,1./3.])
     elif msh_name == "3D_3cyl":
         scale = 10.
         radii = scale*.025

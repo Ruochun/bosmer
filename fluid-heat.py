@@ -180,10 +180,10 @@ for iterNo in range(systemPara['maxIter']):
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
         if args.use_tiga:
             meshData['fluid']['bzMesh'] = bU.loadMatlabBezierMesh(args)
-            meshData['fluid']['mapBzLag'] = bU.formMapBezier2Lagrangian(meshData['fluid']['bzMesh'], mesh, meshData['fluid']['topoDim'])
+            meshData['fluid']['mapBzOrd'], meshData['fluid']['mapBzElem'] = bU.formMapBezier2Lagrangian(meshData['fluid']['bzMesh'], mesh, meshData['fluid']['topoDim'])
 
         if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=0.8)
+            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.0)
         else:
             pbc = None
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
