@@ -1,5 +1,6 @@
 from dolfin import *
 from mshr import *
+import numpy as np
 
 def readinSystemParameters(para, args):
 
@@ -115,6 +116,20 @@ def readinEssentials(para, args):
     para['fluidMesh']['recRes'] = args.recRes
 
     return
+
+def defineProblemTIGALE(meshData, sys_name):
+    if meshData[sys_name]['topoDim']==2:
+        zeroVec = (0.0,0.0)
+    elif meshData[sys_name]['topoDim']==3:
+        zeroVec = (0.0,0.0,0.0)
+    bc0 = {0:zeroVec}
+    bc1 = {1:"modified_v"}
+    BCs = {**bc0, **bc1}
+
+    E = 1e3
+    nu = 0.3
+    D = E/(1.0-nu**2)*np.array([[1.0,nu,0],[nu,1.0,0.0],[0.0,0.0,0.5*(1.0-nu)]])
+    return {"D":D, "BCs": BCs}
 
 def readinDefaults(para):
     sys_list = ['NS', 'adjNS', 'thermal', 'adjThermal', 'SG', 'LE'] # list of all system names

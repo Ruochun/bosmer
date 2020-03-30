@@ -101,9 +101,17 @@ def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
                 I[i] = possibleBzElem
                 break
         if not(foundThisPnt):
-            warnings.warn('Lagrangian node no.{:d} probably has no proper position in Bezier mesh, the last iter residual is {:g}.'.format(i,R))
+            I[i] = possibleBzElem
+            warnings.warn('Lagrangian node no.{:d} probably has no proper position in Bezier mesh, the last iter residual is {:g}. Now proceed as is.'.format(i,R))
         i += 1
         
     return I, T    
+
+def solveTIGALE(meshData, sys_name, problem):
+    bzElem = meshData[sys_name]['bzMesh']['elemNode']
+    bzCP = meshData[sys_name]['bzMesh']['cp']
+
+    #for 
+    
 
 

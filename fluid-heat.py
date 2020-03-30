@@ -179,8 +179,10 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['bndVIDs'] = []
             info('!!!!! Failed to extract boundary vertices, may not be able to auto-remesh !!!!!')
         if args.use_tiga:
+            info('===== Building Bezier to Lagrangian mapping =====')
             meshData['fluid']['bzMesh'] = bU.loadMatlabBezierMesh(args)
             meshData['fluid']['mapBzOrd'], meshData['fluid']['mapBzElem'] = bU.formMapBezier2Lagrangian(meshData['fluid']['bzMesh'], mesh, meshData['fluid']['topoDim'])
+            info('===== Mapping construction finished! =====')
 
         if args.periodic != "none":
             pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.0)
@@ -225,8 +227,11 @@ for iterNo in range(systemPara['maxIter']):
         problemSG = sS.formProblemShapeGradient(meshData, BCs, physicalPara, funcVar, systemPara)
         solverSG = sS.formSolverLinearProblem(problemSG, systemPara, 'SG')
         # now form the problem using linear elasiticity to move the mesh
-        problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
-        solverLE = sS.formSolverLinearProblem(problemLE, systemPara, 'LE') 
+        if not(args.use_tiga):
+            problemLE = sS.formProblemLinearElasticity(meshData, BCs, physicalPara, funcVar, systemPara)
+            solverLE = sS.formSolverLinearProblem(problemLE, systemPara, 'LE') 
+        else:
+            problemTIGALE = conf.defineProblemTIGALE(meshData, 'fluid')
 
         info('****************************************')
         info('Problems and solvers sucessfully formed!')
@@ -301,8 +306,13 @@ for iterNo in range(systemPara['maxIter']):
 
     # now move the mesh and remesh (if needed)
     info("===== Mesh movement ======")
-    solverLE.solve()
-    ALE.move(mesh, funcVar['fluid']['w'])
+    if not(args.use_tiga):
+        solverLE.solve()
+        ALE.move(mesh, funcVar['fluid']['w'])
+    else:
+        bzMeshDisp = bU.solveTIGALE(meshData, 'fluid', problemTIGALE, funcVar)
+        bU.tIGAMeshUpdate(meshData, 'fluid', bzMeshDisp)
+        bU.updateLagrangianViaBz(meshData, 'fluid')
     #mesh.smooth_boundary(20, True)
     #mesh.smooth(20)
 
