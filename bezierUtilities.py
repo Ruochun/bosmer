@@ -2,9 +2,14 @@ from dolfin import *
 import scipy.interpolate as SPI
 import scipy.spatial as SPS
 import scipy.io as IO
+import scipy.sparse as sparse
+from scipy.sparse.linalg import spsolve
 import numpy as np
+import numpy.matlib 
 from ctypes import *
 import warnings
+
+import generalUtilities as gU
 
 libTIGA = CDLL("./c_lib/lib_tIGA.so")
 libTIGA.shapeFunc2.argtypes = [c_int, np.ctypeslib.ndpointer(dtype=np.float64), np.ctypeslib.ndpointer(dtype=np.float64), np.ctypeslib.ndpointer(dtype=np.float64)]
@@ -70,7 +75,8 @@ def findBzOrdinateViaOpt2D(pnt, d, CPs, weights, NN, maxIter=50, goodCrit=1e-7):
 
 def loadMatlabBezierMesh(args):
     mesh = IO.loadmat(args.tiga_mesh_file)
-    mesh['elemNode'] = mesh['elemNode'] - 1 # because matlab
+    mesh['elemNode'] = mesh['elemNode'].astype(np.uint32) - 1 # because matlab
+    mesh['bndNode'] =mesh['bndNode'].astype(np.uint32) - 1
     return mesh
 
 def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
@@ -107,11 +113,85 @@ def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
         
     return I, T    
 
-def solveTIGALE(meshData, sys_name, problem):
+def solveTIGALE2D(meshData, sys_name, problem, Var):
+    E = 1.
+    nu = .3
+    mu = E/(2.*(1.+nu))
+    lam = E*nu/((1.+nu)*(1.-2.*nu))
+    D = problem['D']
+
+    topoDim = meshData[sys_name]['topoDim']
+    d = meshData[sys_name]['bzMesh']['degree']
+    nen = int((d+1)*(d+2)/2)
     bzElem = meshData[sys_name]['bzMesh']['elemNode']
     bzCP = meshData[sys_name]['bzMesh']['cp']
+    bnd = meshData[sys_name]['bzMesh']['bndNode']
+    x, w = gU.quadratureRulesTri('gauss4x4')
+    x = np.hstack((x, 1.0 - np.sum(x, axis=1)[:,None]))
+    NN = np.empty((6, len(bzElem[0,:])))
+    eldof = topoDim*len(bzElem[0,:])
+    nTotTri = len(bzElem)*eldof**2
+    row = np.empty(nTotTri).astype(np.uint32)
+    col = np.empty(nTotTri).astype(np.uint32)
+    val = np.zeros(nTotTri) 
 
-    #for 
-    
+    B = np.empty((eldof, topoDim))
+    BT = np.empty((eldof, topoDim))
+    trB = np.zeros((eldof, topoDim))
+    ntriplets = 0
+    for i in range(len(bzElem)):
+        idx = bzElem[i,:]
+        pts = bzCP[idx,:topoDim]
+        wt = bzCP[idx,-1]
+        dofidx = np.zeros(eldof)
+        dofidx[0::topoDim] = topoDim*idx
+        dofidx[1::topoDim] = topoDim*idx+1
+        row[ntriplets:ntriplets+eldof**2] = np.matlib.repmat(dofidx, 1, eldof)
+        col[ntriplets:ntriplets+eldof**2] = np.kron(dofidx, np.ones(eldof))
+        for j in range(len(w)):
+            libTIGA.shapeFunc2(d, x[j,:], wt, NN)
+            N = NN[0,:]
+            dN = NN[1:1+topoDim,:].transpose()
+            J = pts.transpose() @ dN
+            J0 = np.linalg.det(J)
+            dNdx = dN @ np.linalg.inv(J)
+            """
+            B[0::topoDim,:] = dNdx
+            B[1::topoDim,:] = dNdx
+            np.copyto(BT,B)
+            for k in range(nen):
+                BT[2*k,1], BT[2*k+1,0] = B[2*k+1,0], B[2*k,1]
+                trB[2*k,0], trB[2*k+1,1] = B[2*k,0] + B[2*k+1,1], B[2*k,0] + B[2*k+1,1]
+            eleK = (B @ (mu*(B+BT) + lam*trB).transpose())*J0*w[j] 
+            """
+            B = np.zeros((3, eldof))
+            B[0,0::2] = dNdx[:,0].transpose()
+            B[1,1::2] = dNdx[:,1].transpose() 
+            B[2,0::2] = dNdx[:,1].transpose()
+            B[2,1::2] = dNdx[:,0].transpose()
+            eleK = B.transpose() @ D @ B *J0*w[j]
+            val[ntriplets:ntriplets+eldof**2] = val[ntriplets:ntriplets+eldof**2] + eleK.flatten('F')
+        ntriplets += eldof**2
+    K = sparse.coo_matrix((val, (row, col)))
+    K = sparse.csr_matrix(K)
+    del val, row, col
+    F = np.zeros(topoDim*len(bzCP))
 
+    bndNodes = np.unique(2*bnd.flatten())
+    bndNodes = np.concatenate((bndNodes, bndNodes+1))
+    #bndNodes = np.array([0,1,2,3]).astype(int)
+    uD = np.zeros(len(bndNodes))
+    uD[np.array([0,1,2,3])] = 0.1
+   
+    F = F - K[:,bndNodes]@uD
+    F[bndNodes] = uD
+    K[:,bndNodes] = 0.0
+    K[bndNodes,:] = 0.0
+    K[bndNodes, bndNodes] = 1.
+    disp = spsolve(K, F)
+    print(disp)
+    meshData[sys_name]['bzMesh']['cp'][:,0] += disp[0::2]
+    meshData[sys_name]['bzMesh']['cp'][:,1] += disp[1::2]
+    IO.savemat('out.mat',meshData[sys_name]['bzMesh'])
+    raise Exception
 

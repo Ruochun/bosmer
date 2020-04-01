@@ -310,7 +310,7 @@ for iterNo in range(systemPara['maxIter']):
         solverLE.solve()
         ALE.move(mesh, funcVar['fluid']['w'])
     else:
-        bzMeshDisp = bU.solveTIGALE(meshData, 'fluid', problemTIGALE, funcVar)
+        bzMeshDisp = bU.solveTIGALE2D(meshData, 'fluid', problemTIGALE, funcVar)
         bU.tIGAMeshUpdate(meshData, 'fluid', bzMeshDisp)
         bU.updateLagrangianViaBz(meshData, 'fluid')
     #mesh.smooth_boundary(20, True)

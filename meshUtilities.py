@@ -104,14 +104,14 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>25.) 
+            return not(on_boundary) and (x[0]>4.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 28.
+    totLen = 5.
     height = 1.
-    width = .8
+    width = 1.
     incre = .7
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
@@ -157,7 +157,7 @@ def applyNSBCs(meshData, markers):
     #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1] # top is ?
+    return [bc0, bc1, bc90] # top is ?
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -170,7 +170,7 @@ def applyAdjNSBCs(meshData, markers):
     #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
     bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1] # top is ?
+    return [bc0, bc1, bc90] # top is ?
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
