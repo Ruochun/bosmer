@@ -232,6 +232,7 @@ for iterNo in range(systemPara['maxIter']):
             solverLE = sS.formSolverLinearProblem(problemLE, systemPara, 'LE') 
         else:
             problemTIGALE = conf.defineProblemTIGALE(meshData, 'fluid')
+            funcVar['fluid']['modified_v'].set_allow_extrapolation(True)
 
         info('****************************************')
         info('Problems and solvers sucessfully formed!')
@@ -310,8 +311,8 @@ for iterNo in range(systemPara['maxIter']):
         solverLE.solve()
         ALE.move(mesh, funcVar['fluid']['w'])
     else:
-        bzMeshDisp = bU.solveTIGALE2D(meshData, 'fluid', problemTIGALE, funcVar)
-        bU.tIGAMeshUpdate(meshData, 'fluid', bzMeshDisp)
+        bU.solveTIGALE2D(meshData, 'fluid', problemTIGALE, funcVar)
+        #bU.tIGAMeshUpdate(meshData, 'fluid', bzMeshDisp)
         bU.updateLagrangianViaBz(meshData, 'fluid')
     #mesh.smooth_boundary(20, True)
     #mesh.smooth(20)

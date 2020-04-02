@@ -3,7 +3,9 @@ import scipy.interpolate as SPI
 import scipy.spatial as SPS
 import scipy.io as IO
 import scipy.sparse as sparse
+from scipy.misc import comb
 from scipy.sparse.linalg import spsolve
+from scipy.interpolate import BSpline
 import numpy as np
 import numpy.matlib 
 from ctypes import *
@@ -24,7 +26,13 @@ def findPointInHull(pnt, hulls): # now the problem is in hull does not guarantee
             inlist.append(i)
             break
     return inlist
-    
+
+def pyBernstein(degree, t):
+    B = np.empty(degree+1).astype(float)
+    for i in range(len(B)):
+        B[i] = comb(degree, i)*(t**i)*(1.0-t)**(degree-i)
+    return B
+
 def initBzOrdinate(topoDim):
     if topoDim == 2:
         lucky = 0.3
@@ -76,7 +84,10 @@ def findBzOrdinateViaOpt2D(pnt, d, CPs, weights, NN, maxIter=50, goodCrit=1e-7):
 def loadMatlabBezierMesh(args):
     mesh = IO.loadmat(args.tiga_mesh_file)
     mesh['elemNode'] = mesh['elemNode'].astype(np.uint32) - 1 # because matlab
-    mesh['bndNode'] =mesh['bndNode'].astype(np.uint32) - 1
+    mesh['bndNode'] = mesh['bndNode'].astype(np.int32)
+    mesh['bndNode'][:,:-1] -= 1
+    mesh['uniqueBnd'] = np.unique(mesh['bndNode'][:,:-1])
+    mesh['degree'] = np.asscalar(mesh['degree'])
     return mesh
 
 def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
@@ -95,7 +106,7 @@ def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
         i += 1
     # opt to get mapping
     T = np.empty((len(lagMesh.coordinates()),1+topoDim)) # for each row: bz ordinate
-    I = np.empty((len(lagMesh.coordinates()),1)).astype(int) # for each row: no. of beElem the node is in
+    I = np.empty(len(lagMesh.coordinates())).astype(int) # for each row: no. of beElem the node is in
     N = np.empty((6, len(bzElem[0,:]))) # dummy shape function variable
     i = 0
     for pnt in lagMesh.coordinates():
@@ -111,7 +122,35 @@ def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
             warnings.warn('Lagrangian node no.{:d} probably has no proper position in Bezier mesh, the last iter residual is {:g}. Now proceed as is.'.format(i,R))
         i += 1
         
-    return I, T    
+    return T, I 
+
+#def applyBzDirichletBC(K, F, bnd, BCs, Var):
+def queryBCsFromLagrangian2D(bnd, bzCP, BCs, topoDim, degree, lagFunc):
+    uD = np.zeros(topoDim*len(bzCP))
+    numSamples = 20 # degree + 1
+    sampleU = np.linspace(0.0,1.0,num=numSamples)
+    bzu = np.concatenate((np.zeros(degree + 1), np.ones(degree + 1)))
+    xCP = np.empty(numSamples).astype(float)
+    yCP = np.empty(numSamples).astype(float)
+    evalBernsteinBasis = np.empty((numSamples,degree+1)).astype(float)
+    for segment in bnd:
+        if not(isinstance(BCs[segment[-1]], str)): # not str means it's numeric BC assignment, just directly enforce it
+            uD[topoDim*segment[:-1]] = BCs[segment[-1]][0]
+            uD[topoDim*segment[:-1]+1] = BCs[segment[-1]][1]
+            continue
+        pts = bzCP[segment[:-1],:topoDim]
+        weights = bzCP[segment[:-1],-1] # current implementation uses BSpline package, weights in fact play no roles
+        spl = BSpline(bzu, pts, degree)
+        i = 0
+        for samplePoint in spl(sampleU):
+            xCP[i] = lagFunc[BCs[segment[-1]]](samplePoint)[0] # the Lagrangian query
+            yCP[i] = lagFunc[BCs[segment[-1]]](samplePoint)[1]
+            evalBernsteinBasis[i,:] = pyBernstein(degree, sampleU[i])
+            i += 1
+        uD[topoDim*segment[:-1]] = np.linalg.lstsq(evalBernsteinBasis, xCP, rcond=None)[0] # use only the first return
+        uD[topoDim*segment[:-1]+1] = np.linalg.lstsq(evalBernsteinBasis, yCP, rcond=None)[0]
+
+    return uD
 
 def solveTIGALE2D(meshData, sys_name, problem, Var):
     E = 1.
@@ -170,28 +209,55 @@ def solveTIGALE2D(meshData, sys_name, problem, Var):
             B[2,0::2] = dNdx[:,1].transpose()
             B[2,1::2] = dNdx[:,0].transpose()
             eleK = B.transpose() @ D @ B *J0*w[j]
-            val[ntriplets:ntriplets+eldof**2] = val[ntriplets:ntriplets+eldof**2] + eleK.flatten('F')
+            val[ntriplets:ntriplets+eldof**2] += eleK.flatten('F')
         ntriplets += eldof**2
     K = sparse.coo_matrix((val, (row, col)))
     K = sparse.csr_matrix(K)
     del val, row, col
     F = np.zeros(topoDim*len(bzCP))
 
-    bndNodes = np.unique(2*bnd.flatten())
-    bndNodes = np.concatenate((bndNodes, bndNodes+1))
-    #bndNodes = np.array([0,1,2,3]).astype(int)
-    uD = np.zeros(len(bndNodes))
-    uD[np.array([0,1,2,3])] = 0.1
+    #applyBzDirichletBC(K, F, bnd, problem['BCs'], Var)
+    uD = queryBCsFromLagrangian2D(bnd, bzCP, problem['BCs'], topoDim, d, Var[sys_name])
+    uDdof = np.concatenate((2*meshData[sys_name]['bzMesh']['uniqueBnd'], 2*meshData[sys_name]['bzMesh']['uniqueBnd']+1))
+    
+    
+    
+    #bndNodes = np.unique(2*bnd[:,:-1].flatten())
+    #bndNodes = np.concatenate((bndNodes, bndNodes+1))
+    #uD = np.zeros(len(bndNodes))
+    #uD[np.array([0,1,2,3])] = 0.1
    
-    F = F - K[:,bndNodes]@uD
-    F[bndNodes] = uD
-    K[:,bndNodes] = 0.0
-    K[bndNodes,:] = 0.0
-    K[bndNodes, bndNodes] = 1.
+    F = F - (K @ uD)
+    F[uDdof] = uD[uDdof]
+    K[:,uDdof] = 0.0
+    K[uDdof,:] = 0.0
+    K[uDdof, uDdof] = 1.  # maybe should do something to keep condition numbers
     disp = spsolve(K, F)
-    print(disp)
     meshData[sys_name]['bzMesh']['cp'][:,0] += disp[0::2]
     meshData[sys_name]['bzMesh']['cp'][:,1] += disp[1::2]
     IO.savemat('out.mat',meshData[sys_name]['bzMesh'])
-    raise Exception
+
+    return 0
+
+def updateLagrangianViaBz(meshData, sys_name):
+    T = meshData[sys_name]['mapBzOrd']
+    I = meshData[sys_name]['mapBzElem']
+    bzElem = meshData[sys_name]['bzMesh']['elemNode']
+    bzCP = meshData[sys_name]['bzMesh']['cp']
+    d = meshData[sys_name]['bzMesh']['degree']
+    topoDim = meshData[sys_name]['topoDim']
+    mesh =  meshData[sys_name]['mesh']
+    new_coord = np.empty((len(mesh.coordinates()),topoDim)).astype(float)
+    NN = np.empty((6, len(bzElem[0,:])))
+    for i in range(len(T)):
+        pts = bzCP[bzElem[I[i]],:topoDim]
+        weights = bzCP[bzElem[I[i]],-1]
+        libTIGA.shapeFunc2(d, T[i,:], weights, NN)
+        new_coord[i,:] = pts.transpose() @ NN[0,:]
+    mesh.coordinates()[:] = new_coord
+    del new_coord
+    mesh.bounding_box_tree().build(mesh) # looks like we should update the bounding tree after changing node coords, if not then interpolation is likely to run into errors
+    return 0
+
+
 

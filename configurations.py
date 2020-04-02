@@ -122,8 +122,8 @@ def defineProblemTIGALE(meshData, sys_name):
         zeroVec = (0.0,0.0)
     elif meshData[sys_name]['topoDim']==3:
         zeroVec = (0.0,0.0,0.0)
-    bc0 = {0:zeroVec}
-    bc1 = {1:"modified_v"}
+    bc0 = {1:zeroVec}
+    bc1 = {0:"modified_v"}
     BCs = {**bc0, **bc1}
 
     E = 1e3
