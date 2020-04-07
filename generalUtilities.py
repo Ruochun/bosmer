@@ -46,6 +46,26 @@ def explicitAppendSide(loop, start, dirVec, L, res):
         loop.append(Point(x+i*x_incre, y+i*y_incre))
     return 0
 
+def quadratureRulesLine(rule, nGQ=2):
+    if (rule == 'gauss') or (rule == 'GQ'):
+        if nGQ == 1:
+            x = np.array([0.0])
+            w = np.array([2.0])
+        elif nGQ == 2:
+            x = np.array([-0.5773502691896257,0.5773502691896257])
+            w = np.array([1.0000000000000000,1.0000000000000000])
+        elif nGQ == 3:
+            x = np.array([-0.7745966692414834,0.0,0.7745966692414834])
+            w = np.array([0.5555555555555556,0.8888888888888888,0.5555555555555556])
+        elif nGQ == 4:
+            x = np.array([-0.8611363115940526,-0.3399810435848563,0.3399810435848563,0.8611363115940526])
+            w = np.array([0.3478548451374538,0.6521451548625461,0.6521451548625461,0.3478548451374538])
+
+        w = w/2.0
+        x = 0.5*x + 0.5 # because we do GQ in [0,1]
+
+    return x, w
+
 def quadratureRulesTri(rule, nGQ=3):
     if rule == 'gauss4x4':
         x = np.array([  [0.0571041961,  0.06546699455602246],

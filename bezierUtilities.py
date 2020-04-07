@@ -125,7 +125,7 @@ def formMapBezier2Lagrangian(bzMesh, lagMesh, topoDim):
     return T, I 
 
 #def applyBzDirichletBC(K, F, bnd, BCs, Var):
-def queryBCsFromLagrangian2D(bnd, bzCP, BCs, topoDim, degree, lagFunc):
+def queryBCs2DFlavorLeastSquare(bnd, bzCP, BCs, topoDim, degree, lagFunc):
     uD = np.zeros(topoDim*len(bzCP))
     numSamples = 20 # degree + 1
     sampleU = np.linspace(0.0,1.0,num=numSamples)
@@ -150,6 +150,17 @@ def queryBCsFromLagrangian2D(bnd, bzCP, BCs, topoDim, degree, lagFunc):
         uD[topoDim*segment[:-1]] = np.linalg.lstsq(evalBernsteinBasis, xCP, rcond=None)[0] # use only the first return
         uD[topoDim*segment[:-1]+1] = np.linalg.lstsq(evalBernsteinBasis, yCP, rcond=None)[0]
 
+    return uD
+
+def queryBCs2DFlavorLinearSystem(bnd, bzCP, BCs, topoDim, degree, lagFunc):
+    return 0
+
+def queryBCsFromLagrangian2D(bnd, bzCP, BCs, topoDim, degree, lagFunc):
+    flavor = 'LeastSquare' # LeastSquare or LinearSystem
+    if flavor == 'LeastSquare':
+        uD = queryBCs2DFlavorLeastSquare(bnd, bzCP, BCs, topoDim, degree, lagFunc)
+    elif flavor == 'LinearSystem':
+        uD = queryBCs2DFlavorLinearSystem(bnd, bzCP, BCs, topoDim, degree, lagFunc)
     return uD
 
 def solveTIGALE2D(meshData, sys_name, problem, Var):
