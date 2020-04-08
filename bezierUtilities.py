@@ -33,6 +33,13 @@ def pyBernstein(degree, t):
         B[i] = comb(degree, i)*(t**i)*(1.0-t)**(degree-i)
     return B
 
+def pyDerBernstein(degree, t):
+    A = np.zeros(degree+1).astype(float)
+    B = np.zeros(degree+1).astype(float)
+    A[1:] = pyBernstein(degree-1, t)
+    B[:-1] = pyBernstein(degree-1, t)
+    return degree*(A - B)
+
 def initBzOrdinate(topoDim):
     if topoDim == 2:
         lucky = 0.3
@@ -153,7 +160,35 @@ def queryBCs2DFlavorLeastSquare(bnd, bzCP, BCs, topoDim, degree, lagFunc):
     return uD
 
 def queryBCs2DFlavorLinearSystem(bnd, bzCP, BCs, topoDim, degree, lagFunc):
-    return 0
+    uD = np.zeros(topoDim*len(bzCP))
+    bzu = np.concatenate((np.zeros(degree + 1), np.ones(degree + 1)))
+    x, w = gU.quadratureRulesLine('gauss', nGQ=degree//2+1)
+    for i in range(len(bnd)):
+        if not(isinstance(BCs[bnd[i,-1]], str)): # not str means it's numeric BC assignment, just directly enforce it
+            uD[topoDim*bnd[i,:-1]] = BCs[bnd[i,-1]][0]
+            uD[topoDim*bnd[i,:-1]+1] = BCs[bnd[i,-1]][1]
+            continue
+        pts = bzCP[bnd[i,:-1],:topoDim]
+        wt = bzCP[bnd[i,:-1],-1]
+        spl = BSpline(bzu, pts, degree)
+        K = np.zeros((degree+1, degree+1)).astype(float)
+        #K_Y = np.zeros((degree+1, degree+1))
+        F_X = np.zeros(degree+1).astype(float)
+        F_Y = np.zeros(degree+1).astype(float)
+        for j in range(len(w)):
+            N = pyBernstein(degree, x[j])
+            dN = pyDerBernstein(degree, x[j])
+            J0 = np.linalg.norm(pts.transpose() @ dN)
+            #J_X = np.dot(pts[:,0], dN)
+            #J_Y = np.dot(pts[:,1], dN)
+            quadXY = spl(x[j])
+            K += np.outer(N, N)*J0*w[j]
+            F_X += N*J0*w[j]*lagFunc[BCs[bnd[i,-1]]](quadXY)[0]
+            F_Y += N*J0*w[j]*lagFunc[BCs[bnd[i,-1]]](quadXY)[1]
+        uD[topoDim*bnd[i,:-1]] = np.linalg.solve(K, F_X)
+        uD[topoDim*bnd[i,:-1]+1] = np.linalg.solve(K, F_Y)
+
+    return uD  # still building, maybe no need to finish
 
 def queryBCsFromLagrangian2D(bnd, bzCP, BCs, topoDim, degree, lagFunc):
     flavor = 'LeastSquare' # LeastSquare or LinearSystem
@@ -185,9 +220,9 @@ def solveTIGALE2D(meshData, sys_name, problem, Var):
     col = np.empty(nTotTri).astype(np.uint32)
     val = np.zeros(nTotTri) 
 
-    B = np.empty((eldof, topoDim))
-    BT = np.empty((eldof, topoDim))
-    trB = np.zeros((eldof, topoDim))
+    #B = np.empty((eldof, topoDim))
+    #BT = np.empty((eldof, topoDim))
+    #trB = np.zeros((eldof, topoDim))
     ntriplets = 0
     for i in range(len(bzElem)):
         idx = bzElem[i,:]
