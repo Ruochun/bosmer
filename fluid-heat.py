@@ -45,15 +45,24 @@ parser.add_argument("--recommend_resolution", "-r", type=int, dest="recRes", def
                     help="instruct the code to generate mesh that has at least this many elements")
 parser.add_argument("--immediate_rm", dest="immediate_remesh", action='store_true',
                     help="instruct the code to remesh before starting the first iteration using the integrated remeshing algorithm")
-parser.add_argument("--periodic", type=str, dest="periodic", default="none", choices=["none", "y"],
-                    help="instruct the code to construct periodic function space w.r.t. a certain direction, for example, you can supply \'y\' as the parameter")
+parser.add_argument("--periodic", nargs=3, dest="periodic", metavar=('direction','from','to'), default=['none',0.0,0.0], 
+                    help="supply 3 parameters; instruct the code to construct periodic function space w.r.t. a certain direction, form coordinate 1 to coordinate 2")
 parser.add_argument("--volume_constraint", "-v", type=str, dest="volCons", default="1*",
                     help="volume constraint, supply a number, or a number and a \'*\' in the end allowing the initial domain to expand that many times larger (or smaller)")
+parser.add_argument("--no_stab", dest="no_stab", action='store_true',
+                     help="use Taylor--Hood elements and disable stabilization (seems better for 2D simulations)")
 parser.add_argument("--use_tiga", dest="use_tiga", action='store_true',
                     help="instruct the code to use tIGA mesh to control the geometry movement")
 parser.add_argument("--tiga_mesh", type=str, dest="tiga_mesh_file", default="one_fin.mat",
                     help="path and file name of the tIGA mesh, if use tIGA motion then this must be supplimented")
+parser.add_argument("--use_stiffening", dest="use_stiffening", action='store_true', help="turn on stiffening for linear elasticity system")
+parser.add_argument("--stiffening_scale", type=float, dest="stiffening_scale", default=1.0,
+                    help="linear elasticity for mesh motion material stiffness scaling; use large number to make small elements even more stiff over large elements")
+
 args = parser.parse_args(sys.argv[1:])
+dir_periodic = args.periodic[0]
+from_periodic = float(args.periodic[1])
+to_periodic = float(args.periodic[2]) 
 
 parameters["form_compiler"]["quadrature_degree"] = 3
 parameters["std_out_all_processes"] = False
@@ -116,6 +125,7 @@ else:
 assert mesh is not None
 
 meshData['fluid']['topoDim'] = mesh.topology().dim()
+systemPara['topoDim'] = mesh.topology().dim()
 meshData['fluid']['initVol'] = assemble(Constant(1.)*Measure("dx", domain=mesh, subdomain_id="everywhere"))
 info("Fluid mesh has volume: {:f}".format(meshData['fluid']['initVol']))
 
@@ -184,18 +194,22 @@ for iterNo in range(systemPara['maxIter']):
             meshData['fluid']['mapBzOrd'], meshData['fluid']['mapBzElem'] = bU.formMapBezier2Lagrangian(meshData['fluid']['bzMesh'], mesh, meshData['fluid']['topoDim'])
             info('===== Mapping construction finished! =====')
 
-        if args.periodic != "none":
-            pbc = gU.definePeriodic(meshData, args, 'fluid', mapFrom=0.0, mapTo=1.0)
+        if dir_periodic != "none":
+            pbc = gU.definePeriodic(meshData, dir_periodic, 'fluid', mapFrom=from_periodic, mapTo=to_periodic, map_tol=1e-6)
         else:
             pbc = None
         Vec2 = VectorElement("Lagrange", mesh.ufl_cell(), 2)
         Vec1 = VectorElement("Lagrange", mesh.ufl_cell(), 1)
         Sca1 = FiniteElement("Lagrange", mesh.ufl_cell(), 1)
         Real0 = FiniteElement("R", mesh.ufl_cell(), 0)
-        meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+        if args.no_stab:
+            meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec2, Sca1]), constrained_domain=pbc)
+        else:
+            meshData['fluid']['spaceNS'] = FunctionSpace(mesh, MixedElement([Vec1, Sca1]), constrained_domain=pbc)
         meshData['fluid']['spaceThermal'] = FunctionSpace(mesh, Sca1, constrained_domain=pbc)
         meshData['fluid']['spaceSG'] = FunctionSpace(mesh, MixedElement([Vec1, Real0]))
         meshData['fluid']['spaceLE'] = FunctionSpace(mesh, Vec1) # LE=LinearElasticity, used for mesh moving
+        meshData['fluid']['spaceStiff'] = FunctionSpace(mesh, Sca1)
         SG2LEAssigner = FunctionAssigner(meshData['fluid']['spaceLE'], meshData['fluid']['spaceSG'].sub(0)) # this assigner extracts mesh velocity and drops Lag. multi.
         
         funcVar['fluid']['up'] = Function(meshData['fluid']['spaceNS']) 
@@ -205,7 +219,8 @@ for iterNo in range(systemPara['maxIter']):
         funcVar['fluid']['v'] = Function(meshData['fluid']['spaceSG'])  # shape grad, or say mesh velocity, as well as Lag. multi.
         funcVar['fluid']['modified_v'] = Function(meshData['fluid']['spaceLE'])  # scaled or otherwise processed shape grad
         funcVar['fluid']['w'] = Function(meshData['fluid']['spaceLE'])  # final mesh move direction; used in ALE
-
+        funcVar['fluid']['meshStiffness'] = Function(meshData['fluid']['spaceStiff'])
+        
         BCs['fluid']['NS'] = mU.applyNSBCs(meshData, boundary_markers)
         BCs['fluid']['adjNS'] = mU.applyAdjNSBCs(meshData, boundary_markers)
         BCs['fluid']['thermal'] = mU.applyThermalBCs(meshData, boundary_markers)
@@ -219,7 +234,10 @@ for iterNo in range(systemPara['maxIter']):
         problemAdjThermal = sS.formProblemAdjThermal(meshData, BCs, physicalPara, funcVar, systemPara)
 
         solverNS = sS.formSolverNonLinearProblem(problemNS, systemPara, 'NS')
-        solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        if args.nls == "rmturs":
+            solverAdjNS = sS.formSolverNonLinearProblem(problemAdjNS, systemPara, 'adjNS') 
+        elif args.nls == "variational":
+            solverAdjNS = sS.formSolverLinearProblem(problemAdjNS, systemPara, 'adjNS') # AdjNS is particularly difficult; so in rmtues approach(for harder problems) I treat it as a nonlinear prob to better config the solver
         solverThermal = sS.formSolverLinearProblem(problemThermal, systemPara, 'thermal')
         solverAdjThermal = sS.formSolverLinearProblem(problemAdjThermal, systemPara, 'adjThermal')
 
@@ -242,6 +260,11 @@ for iterNo in range(systemPara['maxIter']):
     if (iterNo+1) % systemPara['ts_per_out']==0:
         meshFile << (mesh, iterNo)
         bndFile << (boundary_markers, iterNo)
+
+    ########### Prepare stiffening for linear elasticity ###############
+
+    #mU.getStiffeningScale(funcVar, meshData, args.use_stiffening, iterNo)
+
     ########### Begining solving systems ###############################
     info('------------------------------')
     info("Begining to solve systems...")
@@ -299,10 +322,10 @@ for iterNo in range(systemPara['maxIter']):
         funcVar['fluid']['modified_v'].rename("sg", "sg")
         uFile << (u_out, iterNo)
         pFile << (p_out, iterNo)
-        adj_uFile << (adj_u_out, iterNo)
-        adj_pFile << (adj_p_out, iterNo)
+        #adj_uFile << (adj_u_out, iterNo)
+        #adj_pFile << (adj_p_out, iterNo)
         tFile << (funcVar['fluid']['T'], iterNo)
-        adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
+        #adj_tFile << (funcVar['fluid']['T_prime'], iterNo)
         vFile << (funcVar['fluid']['modified_v'], iterNo)
 
     # now move the mesh and remesh (if needed)

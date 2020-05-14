@@ -5,8 +5,8 @@ from mpi4py import MPI as pmp
 def epsilon(u):
     return 0.5*(grad(u) + grad(u).T)
 
-def sigma(u):
-    E = 1.
+def sigma(E, u):
+    #E = 1.
     nu = .3
     mu = E/(2.*(1.+nu))
     lam = E*nu/((1.+nu)*(1.-2.*nu))
@@ -58,7 +58,8 @@ def formProblemNS(meshData, BCs, para, Var, system):
             #2.*nu*inner(grad(u), grad(v))
             - div(v)*p + q*div(u) + dot(v, dot(u, nabla_grad(u)))
         )*dx
-    #F = F + F_stab
+    if not(system['no_stab']):
+        F = F + F_stab
     J = derivative(F, w)
     if solver_type == "rmturs":
         assem = rmtursAssembler(J, F, BCs['fluid']['NS'])
@@ -104,7 +105,8 @@ def formProblemAdjNS(meshData, BCs, para, Var, system):
         )*dx + (
             para['objWeight']*dot(v, flowDir)*T_  # a term originated from including flow dir in the obj
         )*dX(90)
-    #F = F + F_stab
+    if not(system['no_stab']):
+        F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, w)
@@ -147,7 +149,8 @@ def formProblemThermal(meshData, BCs, para, Var, system):
         )*dx + (
             0.#T*S*h_hat - S*h_hat*T_hat
         )*ds(0)
-    #F = F + F_stab
+    if not(system['no_stab']):
+        F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, T)
@@ -193,7 +196,8 @@ def formProblemAdjThermal(meshData, BCs, para, Var, system):
         )*ds(0) + (
             para['objWeight']*S*dot(u_, flowDir)
         )*dX(90)
-    #F = F + F_stab
+    if not(system['no_stab']):
+        F = F + F_stab
 
     if solver_type == "rmturs":
         J = derivative(F, T)
@@ -230,13 +234,15 @@ def formProblemShapeGradient(meshData, BCs, para, Var, system):
 def formProblemLinearElasticity(meshData, BCs, para, Var, system):
     dx = meshData['fluid']['dx']
     V = meshData['fluid']['spaceLE']
+    #E = Var['fluid']['meshStiffness']
+    E = 1.0
     if V.mesh().topology().dim() == 2:
         zeros = Constant((0., 0.))
     elif V.mesh().topology().dim() == 3:
         zeros = Constant((0., 0., 0.))
     u = TrialFunction(V)
     v = TestFunction(V)
-    a = inner(sigma(u), grad(v))*dx
+    a = inner(sigma(E, u), grad(v))*dx
     L = inner(zeros, v)*dx
     problem = LinearVariationalProblem(a, L, Var['fluid']['w'], BCs['fluid']['LE'])
     return problem
@@ -255,13 +261,13 @@ def formSolverNonLinearProblem(problem, para, sys_name):
     # FEniCS variational nonlinear solver for debug purpose
     elif nonlinear_solver_type == "variational":
         solver = NonlinearVariationalSolver(problem)
-        solver.parameters['newton_solver']['relative_tolerance'] = 1E-8
-        solver.parameters['newton_solver']['maximum_iterations'] = 7
+        solver.parameters['newton_solver']['relative_tolerance'] = 1E-7
+        solver.parameters['newton_solver']['maximum_iterations'] = 8
         if para[sys_name]['ls'] == "iterative":
             solver.parameters['newton_solver']['linear_solver'] = 'gmres'
             solver.parameters['newton_solver']['preconditioner'] = 'default'
-            #solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
-            solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 3E-5
+            solver.parameters['newton_solver']['krylov_solver']['absolute_tolerance'] = 1E-9
+            #solver.parameters['newton_solver']['krylov_solver']['relative_tolerance'] = 3E-5
             solver.parameters['newton_solver']['krylov_solver']['maximum_iterations'] = 100
             #solver.parameters['newton_solver']['krylov_solver']['restart'] = 50
             #solver.parameters['newton_solver']['krylov_solver']['preconditioner']['ilu']['fill_level'] = 0
@@ -269,19 +275,19 @@ def formSolverNonLinearProblem(problem, para, sys_name):
 
 def formSolverLinearProblem(problem, para, sys_name):
     solver = LinearVariationalSolver(problem)
-    """
-    for component in para[sys_name]: # components typically include a 'general'(high-level) block and a 'krylov_solver'(linear solver specs) block
-        if not(isinstance(para[sys_name][component], dict)):
-            continue
+    
+    if para['topoDim'] == 3:
+        for component in para[sys_name]: # components typically include a 'general'(high-level) block and a 'krylov_solver'(linear solver specs) block
+            if not(isinstance(para[sys_name][component], dict)):
+                continue
 
-        if component == "general":
-            for option in para[sys_name]["general"]:
-                solver.parameters[option] = para[sys_name]["general"][option]
-        else:
-            for option in para[sys_name][component]:
-                solver.parameters[component][option] = para[sys_name][component][option]
-    """
-    #for item in solver.parameters["krylov_solver"].items(): print(item)
+            if component == "general":
+                for option in para[sys_name]["general"]:
+                    solver.parameters[option] = para[sys_name]["general"][option]
+            else:
+                for option in para[sys_name][component]:
+                    solver.parameters[component][option] = para[sys_name][component][option]
+        #for item in solver.parameters["krylov_solver"].items(): print(item)
     return solver
 
 def formLinearSolver(para, sys_name):   # rmturs needs its linear_solver objecti

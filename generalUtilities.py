@@ -2,17 +2,17 @@ from dolfin import *
 from mshr import *
 import numpy as np
 
-def definePeriodic(meshData, args, sys_name, mapFrom, mapTo):
+def definePeriodic(meshData, args, sys_name, mapFrom, mapTo, map_tol=1e-6):
     if meshData[sys_name]['topoDim'] == 2:
-        return globals()[args.periodic+'Periodic'](mapFrom=mapFrom, mapTo=mapTo)
+        return globals()[args+'Periodic'](map_tol=map_tol, mapFrom=mapFrom, mapTo=mapTo)
     elif meshData[sys_name]['topoDim'] == 3:
-        return globals()[args.periodic+'Periodic3D'](mapFrom=mapFrom, mapTo=mapTo)
+        return globals()[args+'Periodic3D'](map_tol=map_tol, mapFrom=mapFrom, mapTo=mapTo)
 
 class yPeriodic(SubDomain):
-    def __init__(self, tolerance=1e-6, mapFrom=0.0, mapTo=1.0):
+    def __init__(self, map_tol=1e-6, mapFrom=0.0, mapTo=1.0):
         SubDomain.__init__(self)
-        self.tol = abs(tolerance)
-        #self.map_tolerance = tolerance
+        self.map_tol = map_tol
+        self.map_tolerance = map_tol
         self.lower = mapFrom
         self.shift_dist = (mapTo - mapFrom)
     def inside(self, x, on_boundary):
@@ -23,10 +23,10 @@ class yPeriodic(SubDomain):
         y[1] = x[1] - self.shift_dist
 
 class yPeriodic3D(SubDomain):
-    def __init__(self, tolerance=1e-6, mapFrom=0.0, mapTo=1.0):
+    def __init__(self, map_tol=1e-6, mapFrom=0.0, mapTo=1.0):
         SubDomain.__init__(self)
-        self.tol = abs(tolerance)
-        #self.map_tolerance = tolerance
+        self.map_tol = map_tol
+        self.map_tolerance = map_tol
         self.lower = mapFrom
         self.shift_dist = (mapTo - mapFrom)
     def inside(self, x, on_boundary):

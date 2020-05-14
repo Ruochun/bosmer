@@ -3,6 +3,7 @@ import generalUtilities as gU
 from mshr import *
 import numpy as np
 import os
+import scipy.interpolate as SPI
 
 def sampleMesh(system, msh_name, res=50):
     ref_num_cells = system['fluidMesh']['recRes']
@@ -104,15 +105,15 @@ def markSubDomains(mesh):
     subDomains.set_all(99)
     class outflowCV(SubDomain):
         def inside(self, x, on_boundary):
-            return not(on_boundary) and (x[0]>4.) 
+            return not(on_boundary) and (x[0]>29.) 
     outflowCV().mark(subDomains, 90)
     return subDomains     
 
 def markBoundaries(mesh):
-    totLen = 5.
+    totLen = 32.
     height = 1.
-    width = 1.
-    incre = .7
+    width = 1.6
+    incre = .8
     eps = 1e-6
     boundary = MeshFunction("size_t", mesh, mesh.topology().dim()-1)
     boundary.set_all(99)
@@ -155,9 +156,10 @@ def applyNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), inflow, markers, 1)
     #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
-    bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
+    #bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90] # top is ?
+    #return [bc0, bc1, bc10, bc91, bc90] # top is ?
+    return [bc0, bc1]
 
 def applyAdjNSBCs(meshData, markers):
     W = meshData['fluid']['spaceNS']
@@ -168,9 +170,10 @@ def applyAdjNSBCs(meshData, markers):
     bc0 = DirichletBC(W.sub(0), noslip, markers, 0)
     bc1 = DirichletBC(W.sub(0), noslip, markers, 1)
     #bc10 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 10)
-    bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
+    #bc90 = DirichletBC(W.sub(0).sub(1), 0.0, markers, 90)
     #bc91 = DirichletBC(W.sub(0).sub(2), 0.0, markers, 91)
-    return [bc0, bc1, bc90] # top is ?
+    #return [bc0, bc1, bc10, bc91, bc90] # top is ?
+    return [bc0, bc1]
 
 def applyThermalBCs(meshData, markers):
     W = meshData['fluid']['spaceThermal']
@@ -195,7 +198,8 @@ def applyShapeGradientBCs(meshData, markers):
     #bc10 = DirichletBC(W.sub(0), noslip, markers, 10)
     bc90 = DirichletBC(W.sub(0), noslip, markers, 90)
     #bc91 = DirichletBC(W.sub(0), noslip, markers, 91)
-    return [bc1, bc2, bc90] 
+    #return [bc1, bc2, bc10, bc90, bc91] 
+    return [bc1, bc2, bc90]
 
 def applyLinearElasticityBCs(meshData, markers, Var, para):
     alpha = para['stepLen']
@@ -211,8 +215,31 @@ def applyLinearElasticityBCs(meshData, markers, Var, para):
     #bc10 = DirichletBC(W, noslip, markers, 10)
     bc90 = DirichletBC(W, noslip, markers, 90)
     #bc91 = DirichletBC(W, noslip, markers, 91)
-    return [bc0, bc1, bc2, bc90] 
+    #return [bc0, bc1, bc10, bc2, bc90, bc91] 
+    return [bc0, bc1, bc2, bc90]
 
+### about stiffening
+
+def getStiffeningScale(Var, meshData, use_stiffening, iterNo):
+    mesh = meshData['fluid']['mesh']
+    V = meshData['fluid']['spaceStiff']
+    if not(use_stiffening):
+        if (iterNo+1)==1:
+            Var['fluid']['meshStiffness'].interpolate(Constant(1.0))
+    elif (iterNo+1)==1:
+        centers = []
+        rad = []
+        for cell in cells(mesh):
+            centers.append(np.average(np.array(cell.get_vertex_coordinates()).reshape((-1,3)), axis=0))
+            rad.append(cell.inradius())
+        coord = np.array(centers)
+        values = np.array(rad)
+        interpolant = SPI.LinearNDInterpolator(coord, values, fill_value=np.mean(values))
+        nodal = interpolant(mesh.coordinates())
+        Var['fluid']['meshStiffness'].vector()[:] = np.divide(1.0, np.power(nodal[dof_to_vertex_map(V)], 4))
+        del centers, rad, coord, values, nodal
+
+    return 0
 
 ### remeshing utilities
 
