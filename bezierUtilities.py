@@ -3,7 +3,7 @@ import scipy.interpolate as SPI
 import scipy.spatial as SPS
 import scipy.io as IO
 import scipy.sparse as sparse
-from scipy.misc import comb
+from scipy.special import comb
 from scipy.sparse.linalg import spsolve
 from scipy.interpolate import BSpline
 import numpy as np
